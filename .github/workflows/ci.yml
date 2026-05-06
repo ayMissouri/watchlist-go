@@ -6,39 +6,40 @@ name: ci
 
 # on defines the events that trigger the workflow.
 on:
-    # Opening or updating a PR will trigger the workflow.
-    pull_request:
-    # Pushing to the main branch will also trigger the workflow.
-    push:
-        branches:
-            - main
+  # Opening or updating a PR will trigger the workflow.
+  pull_request:
+  # Pushing to the main branch will also trigger the workflow.
+  push:
+    branches:
+      - main
 
 # a job runs on a fresh GitHub runner.
 jobs:
-    test-and-lint:
-        # runs-on specifies the type of runner to use.
-        runs-on: ubuntu-latest
+  test-and-lint:
+    # runs-on specifies the type of runner to use.
+    runs-on: ubuntu-latest
 
-        # steps are the individual tasks that will be executed in the job in order.
-        steps:
-            - name: Check out repository
-              uses: actions/checkout@v5
+    # steps are the individual tasks that will be executed in the job in order.
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
 
-            - name: Set up Go
-              uses: actions/setup-go@v6
-              with:
-                  go-version-file: go.mod
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
 
-            - name: Verify Go version
-              run: go version
+      - name: Verify Go version
+        run: go version
 
-            - name: Download dependencies
-              run: go mod tidy
+      - name: Download dependencies
+        run: go mod tidy
 
-            - name: Run tests
-              run: go test ./...
+      - name: Run tests
+        run: go test ./...
 
-            - name: Run golangci-lint
-              uses: golangci/golangci-lint-action@v8
-              with:
-                version: v2.1
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          install-mode: goinstall
+          version: v2.1
