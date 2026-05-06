@@ -1,0 +1,36 @@
+# GitHub's official setup-go action supports reading the Go version from go.mod via go-version-file.
+# This workflow will run automatically on PRs and on pushes to main.
+
+# Name is the workflow label in Github Actions UI.
+name: ci
+
+# on defines the events that trigger the workflow.
+on:
+    # Opening or updating a PR will trigger the workflow.
+    pull_request:
+    # Pushing to the main branch will also trigger the workflow.
+    push:
+        branches:
+            - main
+
+# a job runs on a fresh GitHub runner.
+jobs:
+    test:
+        # runs-on specifies the type of runner to use.
+        runs-on: ubuntu-latest
+
+        # steps are the individual tasks that will be executed in the job in order.
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@v5
+
+            - name: Set up Go
+              uses: actions/setup-go@v6
+              with:
+                  go-version-file: go.mod
+
+            - name: Verify Go version
+              run: go version
+
+            - name: Run tests
+              run: go test ./...
