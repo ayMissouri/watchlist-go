@@ -12,3 +12,9 @@ This creates a `go.mod` file which is the Go equivalent of starting a package-ma
 
 ### golangci-lint
 golangci-lint is the standard multi-linter most Go repos use
+
+### pgx
+pgx is the standard Postgres driver in Go
+
+### godotenv
+godotenv loads .env files
