@@ -15,7 +15,7 @@ on:
 
 # a job runs on a fresh GitHub runner.
 jobs:
-    test:
+    test-and-lint:
         # runs-on specifies the type of runner to use.
         runs-on: ubuntu-latest
 
@@ -32,5 +32,13 @@ jobs:
             - name: Verify Go version
               run: go version
 
+            - name: Download dependencies
+              run: go mod tidy
+
             - name: Run tests
               run: go test ./...
+
+            - name: Run golangci-lint
+              uses: golangci/golangci-lint-action@v8
+              with:
+                version: v2.1
