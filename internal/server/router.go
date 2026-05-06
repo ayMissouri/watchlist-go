@@ -10,11 +10,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
+	"github.com/ayMissouri/watchlist-go.git/internal/db"
 	"github.com/ayMissouri/watchlist-go.git/internal/handlers"
 )
 
 // http.Handler is an interface, so this can return anything that represents a HTTP handler.
-func NewRouter() http.Handler {
+func NewRouter(database *db.DB) http.Handler {
 	// chi is a lightweight, idiomatic and composable router for building Go HTTP services.
 	// It works with net/http and has a simple API for defining routes and middleware.
 	r := chi.NewRouter()
@@ -27,7 +28,7 @@ func NewRouter() http.Handler {
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.Timeout(30 * time.Second))
 
-	r.Get("/health", handlers.Health)
+	r.Get("/health", handlers.Health(database))
 
 	return r
 }

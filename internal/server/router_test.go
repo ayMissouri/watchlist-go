@@ -4,10 +4,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/ayMissouri/watchlist-go.git/internal/db"
 )
 
-func TestNewRouterHealthRoute(t *testing.T) {
-	router := NewRouter()
+func TestHealthRoute_NoDB(t *testing.T) {
+	router := NewRouter(&db.DB{})
 
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	rr := httptest.NewRecorder()
@@ -15,6 +17,6 @@ func TestNewRouterHealthRoute(t *testing.T) {
 	router.ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, rr.Code)
+		t.Fatalf("expected 200, got %d", rr.Code)
 	}
 }
