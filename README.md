@@ -25,12 +25,7 @@ This starts a PostgreSQL instance on port `5432` and automatically runs migratio
 
 ### Configure environment
 
-Create a `.env` file in the project root:
-
-```env
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/watchlist
-PORT=8080
-```
+Copy and fill out the `.env.example` file
 
 ### Run the server
 
