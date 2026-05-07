@@ -12,6 +12,7 @@ import (
 
 	"github.com/ayMissouri/watchlist-go.git/internal/db"
 	"github.com/ayMissouri/watchlist-go.git/internal/handlers"
+	"github.com/ayMissouri/watchlist-go.git/internal/middleware"
 )
 
 // http.Handler is an interface, so this can return anything that represents a HTTP handler.
@@ -29,6 +30,17 @@ func NewRouter(database *db.DB) http.Handler {
 	r.Use(chimiddleware.Timeout(30 * time.Second))
 
 	r.Get("/health", handlers.Health(database))
+
+	authHandler := &handlers.AuthHandler{DB: database}
+
+	// Public auth routes
+	r.Route("/auth", func(r chi.Router) {
+		r.Get("/login", authHandler.Login)
+		r.Get("/callback", authHandler.Callback)
+
+		// Protected route that requires a valid JWT
+		r.With(middleware.RequireAuth).Get("/me", authHandler.Me)
+	})
 
 	return r
 }

@@ -13,12 +13,14 @@ import (
 	
 	"github.com/ayMissouri/watchlist-go.git/internal/db"
 	"github.com/ayMissouri/watchlist-go.git/internal/server"
+	"github.com/ayMissouri/watchlist-go.git/internal/auth"
 )
 
 // func main is the entry point of the program.
 func main() {
 	// Load .env (ignored if not present)
 	_ = godotenv.Load()
+	auth.InitDiscord()
 
 	// context.Background() is the root context — used at startup
 	// where there's no incoming request to derive a context from
