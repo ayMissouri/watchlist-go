@@ -1,1 +1,1 @@
-web: ./watchlist-backend
+web: ./watchlist-go
