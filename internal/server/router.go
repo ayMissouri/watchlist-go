@@ -32,6 +32,7 @@ func NewRouter(database *db.DB) http.Handler {
 	r.Get("/health", handlers.Health(database))
 
 	authHandler := &handlers.AuthHandler{DB: database}
+	wlHandler := &handlers.WatchlistHandler{DB: database}
 
 	// Public auth routes
 	r.Route("/auth", func(r chi.Router) {
@@ -40,6 +41,17 @@ func NewRouter(database *db.DB) http.Handler {
 
 		// Protected route that requires a valid JWT
 		r.With(middleware.RequireAuth).Get("/me", authHandler.Me)
+	})
+
+	r.Route("/watchlist", func(r chi.Router) {
+		// Applies auth middlware to all watchlist routes.
+		r.Use(middleware.RequireAuth)
+
+		r.Get("/", wlHandler.GetAll)
+		r.Put("/{id}", wlHandler.Upsert)
+		r.Get("/{id}", wlHandler.GetOne)
+		r.Patch("/{id}/progress", wlHandler.UpdateProgress)
+		r.Delete("/{id}", wlHandler.Delete)
 	})
 
 	return r

@@ -2,19 +2,20 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/ayMissouri/watchlist-go.git/internal/models"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type DB struct {
 	Pool *pgxpool.Pool
 }
 
-// context.Context is very important. Every function that does I/O accepts a ctx as its first argument.
+// Every function that does I/O accepts a ctx as its first argument.
 // It lets us propagate deadlines and cancellations through a chain of calls,
-// for example, if a request times out, the context gets cancelled and your DB query stops automatically. 
+// for example, if a request times out, the context gets cancelled and your DB query stops automatically.
 
 // the * means New returns a pointer to a DB struct.
 // pointers in Go mean youre sharing the same piece of memory rather than copying it.
@@ -64,4 +65,125 @@ func (d *DB) GetUser(ctx context.Context, id string) (*models.User, error) {
 		return nil, err
 	}
 	return u, nil
+}
+
+// GetWatchlist returns all items for a user by item ID,
+func (d *DB) GetWatchlist(ctx context.Context, userID string) (map[string]models.WatchlistItem, error) {
+	rows, err := d.Pool.Query(ctx, `
+		SELECT id, media_type, tmdb_id, title, poster_path, backdrop_path,
+		       progress_watched, progress_duration,
+		       last_season_watched, last_episode_watched,
+		       show_progress, last_updated
+		FROM watchlist_items
+		WHERE user_id = $1
+		ORDER BY last_updated DESC
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string]models.WatchlistItem)
+	for rows.Next() {
+		item, err := scanItem(rows)
+		if err != nil {
+			return nil, err
+		}
+		result[item.ID] = *item
+	}
+
+	return result, rows.Err()
+}
+
+func (d *DB) GetItem(ctx context.Context, userID, itemID string) (*models.WatchlistItem, error) {
+	row := d.Pool.QueryRow(ctx, `
+		SELECT id, media_type, tmdb_id, title, poster_path, backdrop_path,
+		       progress_watched, progress_duration,
+		       last_season_watched, last_episode_watched,
+		       show_progress, last_updated
+		FROM watchlist_items
+		WHERE user_id = $1 AND id = $2
+	`, userID, itemID)
+
+	return scanItem(row)
+}
+
+func (d *DB) UpsertItem(ctx context.Context, userID string, item *models.WatchlistItem) error {
+	showProgressJSON, err := json.Marshal(item.ShowProgress)
+	if err != nil {
+		return err
+	}
+
+	_, err = d.Pool.Exec(ctx, `
+		INSERT INTO watchlist_items (
+			id, user_id, media_type, tmdb_id, title,
+			poster_path, backdrop_path,
+			progress_watched, progress_duration,
+			last_season_watched, last_episode_watched,
+			show_progress, last_updated
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+		ON CONFLICT (id, user_id) DO UPDATE SET
+			media_type           = EXCLUDED.media_type,
+			tmdb_id              = EXCLUDED.tmdb_id,
+			title                = EXCLUDED.title,
+			poster_path          = EXCLUDED.poster_path,
+			backdrop_path        = EXCLUDED.backdrop_path,
+			progress_watched     = EXCLUDED.progress_watched,
+			progress_duration    = EXCLUDED.progress_duration,
+			last_season_watched  = EXCLUDED.last_season_watched,
+			last_episode_watched = EXCLUDED.last_episode_watched,
+			show_progress        = EXCLUDED.show_progress,
+			last_updated         = EXCLUDED.last_updated
+	`,
+		item.ID, userID, item.Type, item.TmdbID, item.Title,
+		item.PosterPath, item.BackdropPath,
+		item.Progress.Watched, item.Progress.Duration,
+		item.LastSeasonWatched, item.LastEpisodeWatched,
+		showProgressJSON, item.LastUpdated,
+	)
+	return err
+}
+
+func (d *DB) DeleteItem(ctx context.Context, userID, itemID string) error {
+	tag, err := d.Pool.Exec(ctx,
+		`DELETE FROM watchlist_items WHERE user_id = $1 AND id = $2`,
+		userID, itemID,
+	)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("not found")
+	}
+	return nil
+}
+
+// this is an interface with a single method.
+// both pgx.Row and pgx.Rows implement this interface, so scanItem can be used for both single-row and multi-row queries.
+type rowScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanItem(row rowScanner) (*models.WatchlistItem, error) {
+	item := &models.WatchlistItem{}
+	var showProgressJSON []byte
+
+	err := row.Scan(
+		&item.ID, &item.Type, &item.TmdbID, &item.Title,
+		&item.PosterPath, &item.BackdropPath,
+		&item.Progress.Watched, &item.Progress.Duration,
+		&item.LastSeasonWatched, &item.LastEpisodeWatched,
+		&showProgressJSON, &item.LastUpdated,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(showProgressJSON) > 0 && string(showProgressJSON) != "null" {
+		if err := json.Unmarshal(showProgressJSON, &item.ShowProgress); err != nil {
+			return nil, err
+		}
+	}
+
+	return item, nil
 }
