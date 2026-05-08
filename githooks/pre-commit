@@ -1,0 +1,26 @@
+#!/usr/bin/env sh
+set -eu
+
+WATCHLIST_FILE="bruno/watchlist.yml"
+
+# If the file does not exist then exit.
+if [ ! -f "$WATCHLIST_FILE" ]; then
+  exit 0
+fi
+
+# Remove hardcoded bearer tokens while leaving indentation and key names.
+if grep -Eq '^[[:space:]]*token:[[:space:]]*eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+[[:space:]]*$' "$WATCHLIST_FILE"; then
+  tmp_file="$(mktemp)"
+
+  sed -E "s/^([[:space:]]*token:[[:space:]]*)eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+[[:space:]]*$/\1''/" "$WATCHLIST_FILE" > "$tmp_file"
+
+  if ! cmp -s "$WATCHLIST_FILE" "$tmp_file"; then
+    mv "$tmp_file" "$WATCHLIST_FILE"
+    git add "$WATCHLIST_FILE"
+    echo "pre-commit: scrubbed auth tokens from $WATCHLIST_FILE"
+  else
+    rm -f "$tmp_file"
+  fi
+fi
+
+exit 0

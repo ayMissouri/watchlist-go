@@ -1,6 +1,6 @@
 # watchlist-go
 
-A project made to help learn new skills and improve existing ones. 
+A project made to help learn new skills and improve existing ones.
 
 ## Stack
 
@@ -38,6 +38,14 @@ go run ./cmd/server
 
 The server starts on port `8080` by default.
 
+## Install git hooks
+
+A pre-commit hook that removes hardcoded bearer JWT tokens from `bruno/watchlist.yml` before a commit is created is included for easily and safely exporting the bruno collection.
+
+```bash
+./scripts/install-git-hooks.sh
+```
+
 ## Project Structure
 
 ```
@@ -55,7 +63,7 @@ migrations/       # SQL migration files
 ## API
 
 | Method | Path             | Auth     | Description                          |
-|--------|------------------|----------|--------------------------------------|
+| ------ | ---------------- | -------- | ------------------------------------ |
 | GET    | `/health`        |          | Health check                         |
 | GET    | `/auth/login`    |          | Redirect to Discord OAuth2 login     |
 | GET    | `/auth/callback` |          | Discord OAuth2 callback, returns JWT |
