@@ -56,7 +56,12 @@ jobs:
         run: go mod tidy
 
       - name: Run migrations
-        run: psql $DATABASE_URL -f migrations/001_init.sql
+        run: |
+          psql postgres://postgres:postgres@localhost:5432/watchlist_test?sslmode=disable \
+            -f migrations/001_init.sql \
+            -f migrations/002_watchlist.sql
+        env:
+          PGPASSWORD: postgres
 
       - name: Run tests
         run: go test ./...
@@ -72,3 +77,22 @@ jobs:
         with:
           install-mode: goinstall
           version: v2.1
+
+  deploy:
+    # blocked until test-and-lint job completes successfully.
+    needs: test-and-lint
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway
+        run: railway up --service ${{ secrets.RAILWAY_SERVICE_ID }} --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_ENVIRONMENT_ID: ${{ secrets.RAILWAY_ENVIRONMENT_ID }}
