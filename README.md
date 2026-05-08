@@ -68,3 +68,8 @@ migrations/       # SQL migration files
 | GET    | `/auth/login`    |          | Redirect to Discord OAuth2 login     |
 | GET    | `/auth/callback` |          | Discord OAuth2 callback, returns JWT |
 | GET    | `/auth/me`       | Required | Returns the authenticated user       |
+| GET    | `/watchlist`     | Required | Returns the user's full watchlist    |
+| GET    | `/watchlist/{id}` | Required | Returns a watchlist item by ID       |
+| PUT    | `/watchlist/{id}` | Required | Creates or updates a watchlist item  |
+| PATCH  | `/watchlist/{id}/progress` | Required | Updates item progress fields |
+| DELETE | `/watchlist/{id}` | Required | Deletes a watchlist item by ID       |
