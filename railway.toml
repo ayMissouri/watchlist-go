@@ -1,8 +1,8 @@
 [build]
-builder = "nixpacks"
+builder = "RAILPACK"
 
 [deploy]
-startCommand = "./watchlist-go"
+startCommand = "./server"
 healthcheckPath = "/health"
 healthcheckTimeout = 30
 restartPolicyType = "on_failure"

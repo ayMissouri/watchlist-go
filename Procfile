@@ -1,1 +1,1 @@
-web: ./watchlist-go
+web: ./server
