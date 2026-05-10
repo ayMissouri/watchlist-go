@@ -21,14 +21,30 @@ type WatchlistHandler struct {
 // Returns full watchlist for user.
 func (h *WatchlistHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.ClaimsFromCtx(r)
+	q := parseWatchlistQuery(r)
 
-	items, err := h.DB.GetWatchlist(r.Context(), claims.UserID)
+	items, total, err := h.DB.GetWatchlist(r.Context(), claims.UserID, q)
 	if err != nil {
 		jsonError(w, "could not fetch watchlist", http.StatusInternalServerError)
 		return
 	}
 
-	jsonOK(w, items)
+	totalPages := total / q.PerPage
+	if total%q.PerPage != 0 {
+		totalPages++
+	}
+
+	resp := models.WatchlistResponse{
+		Items: items,
+		Pagination: models.PaginationMeta{
+			Page:       q.Page,
+			PerPage:    q.PerPage,
+			Total:      total,
+			TotalPages: totalPages,
+		},
+	}
+
+	jsonOK(w, resp)
 }
 
 // GET /watchlist/{id}
