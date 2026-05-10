@@ -17,8 +17,14 @@ type AuthHandler struct {
 	DB *db.DB
 }
 
-// Login redirects the user to discords auth consent screen.
+// Login godoc
+// @Summary     Discord OAuth2 login
+// @Description Redirects the user to Discord's OAuth2 login screen
+// @Tags        auth
+// @Success     307
+// @Router      /auth/login [get]
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	// Login redirects the user to discords auth consent screen.
 	b := make([]byte, 16)
 	_, _ = rand.Read(b)
 	state := base64.URLEncoding.EncodeToString(b)
@@ -36,8 +42,19 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, auth.OAuthConfig.AuthCodeURL(state), http.StatusTemporaryRedirect)
 }
 
-// Callback handles the redirect back from discord after the user approves.
+// Callback godoc
+// @Summary     OAuth2 callback
+// @Description Handles the Discord redirect, issues a JWT
+// @Tags        auth
+// @Produce     json
+// @Param       code  query string true "OAuth2 code from Discord"
+// @Param       state query string true "CSRF state token"
+// @Success     200 {object} map[string]interface{}
+// @Failure     400 {object} map[string]string
+// @Failure     500 {object} map[string]string
+// @Router      /auth/callback [get]
 func (h *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
+	// Callback handles the redirect back from discord after the user approves.
 	// Validate the cookie matches what discord sent back
 	stateCookie, err := r.Cookie("oauth_state")
 	if err != nil || stateCookie.Value != r.URL.Query().Get("state") {
@@ -89,8 +106,18 @@ func (h *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Me returns the current authenticated users profile
+// Me godoc
+// @Summary     Get current user
+// @Description Returns the authenticated users profile
+// @Tags        auth
+// @Produce     json
+// @Success     200 {object} models.User
+// @Failure     401 {object} map[string]string
+// @Failure     404 {object} map[string]string
+// @Security    BearerAuth
+// @Router      /auth/me [get]
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
+	// Me returns the current authenticated users profile
 	claims := middleware.ClaimsFromCtx(r)
 
 	user, err := h.DB.GetUser(r.Context(), claims.UserID)

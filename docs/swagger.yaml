@@ -1,0 +1,402 @@
+basePath: /
+definitions:
+  github_com_ayMissouri_watchlist-go_git_internal_models.EpisodeProgress:
+    properties:
+      episode:
+        type: integer
+      last_updated:
+        type: integer
+      progress:
+        $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Progress'
+      season:
+        type: integer
+    type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.PaginationMeta:
+    properties:
+      page:
+        type: integer
+      per_page:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.Progress:
+    properties:
+      duration:
+        type: number
+      watched:
+        type: number
+    type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.ShowProgress:
+    additionalProperties:
+      $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.EpisodeProgress'
+    type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.UpdateProgressRequest:
+    properties:
+      last_episode_watched:
+        type: integer
+      last_season_watched:
+        type: integer
+      last_updated:
+        type: integer
+      progress:
+        $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Progress'
+      show_progress:
+        $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.ShowProgress'
+    type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.User:
+    properties:
+      avatar:
+        description: omitempty means if field is empty, it will be omitted from the
+          JSON response.
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      username:
+        type: string
+    type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.WatchlistItem:
+    properties:
+      backdrop_path:
+        type: string
+      id:
+        type: string
+      last_episode_watched:
+        type: integer
+      last_season_watched:
+        description: A *int can be nil.
+        type: integer
+      last_updated:
+        type: integer
+      poster_path:
+        type: string
+      progress:
+        $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Progress'
+      show_progress:
+        $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.ShowProgress'
+      title:
+        type: string
+      tmdb_id:
+        type: integer
+      type:
+        type: string
+    type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.WatchlistResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.WatchlistItem'
+        type: array
+      pagination:
+        $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.PaginationMeta'
+    type: object
+  internal_handlers.HealthResponse:
+    properties:
+      database:
+        type: string
+      status:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    name: ayMissouri
+    url: https://github.com/ayMissouri/watchlist-go.git
+  description: Backend API for tracking movies and TV shows.
+  license:
+    name: MIT
+  title: Watchlist API
+  version: "1.0"
+paths:
+  /auth/callback:
+    get:
+      description: Handles the Discord redirect, issues a JWT
+      parameters:
+      - description: OAuth2 code from Discord
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: CSRF state token
+        in: query
+        name: state
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: OAuth2 callback
+      tags:
+      - auth
+  /auth/login:
+    get:
+      description: Redirects the user to Discord's OAuth2 login screen
+      responses:
+        "307":
+          description: Temporary Redirect
+      summary: Discord OAuth2 login
+      tags:
+      - auth
+  /auth/me:
+    get:
+      description: Returns the authenticated users profile
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.User'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - auth
+  /health:
+    get:
+      description: Returns API and database status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handlers.HealthResponse'
+      summary: Health check
+      tags:
+      - system
+  /watchlist:
+    get:
+      description: Returns a paginated, filterable list of watchlist items
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: per_page
+        type: integer
+      - description: Filter by type
+        enum:
+        - tv
+        - movie
+        in: query
+        name: type
+        type: string
+      - description: Sort field
+        enum:
+        - last_updated
+        - title
+        in: query
+        name: sort
+        type: string
+      - description: Sort order
+        enum:
+        - asc
+        - desc
+        in: query
+        name: order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.WatchlistResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get watchlist
+      tags:
+      - watchlist
+  /watchlist/{id}:
+    delete:
+      description: Deletes a watchlist item by ID
+      parameters:
+      - description: Item ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Remove watchlist item
+      tags:
+      - watchlist
+    get:
+      description: Returns a single watchlist item by ID
+      parameters:
+      - description: Item ID (e.g. t63174 or m533535)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.WatchlistItem'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get watchlist item
+      tags:
+      - watchlist
+    put:
+      consumes:
+      - application/json
+      description: Creates or fully replaces a watchlist item
+      parameters:
+      - description: Item ID (e.g. t63174 or m533535)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Watchlist item
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.WatchlistItem'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add or update watchlist item
+      tags:
+      - watchlist
+  /watchlist/{id}/progress:
+    patch:
+      consumes:
+      - application/json
+      description: Lightweight progress-only update without replacing the full item
+      parameters:
+      - description: Item ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Progress update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.UpdateProgressRequest'
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update item progress
+      tags:
+      - watchlist
+securityDefinitions:
+  BearerAuth:
+    description: 'Enter your JWT token as: Bearer {token}'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

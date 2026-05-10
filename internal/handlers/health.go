@@ -16,8 +16,15 @@ type HealthResponse struct {
 	Database string `json:"database"`
 }
 
-// Health starting with a capital letter means this function is exported and can be used by other packages.
+// Health godoc
+// @Summary     Health check
+// @Description Returns API and database status
+// @Tags        system
+// @Produce     json
+// @Success     200 {object} HealthResponse
+// @Router      /health [get]
 func Health(database *db.DB) http.HandlerFunc {
+	// Health starting with a capital letter means this function is exported and can be used by other packages.
 	return func(w http.ResponseWriter, r *http.Request) {
 		dbStatus := "ok"
 		if err := database.Ping(r.Context()); err != nil {
