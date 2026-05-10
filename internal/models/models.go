@@ -45,3 +45,23 @@ type UpdateProgressRequest struct {
 	LastEpisodeWatched *int         `json:"last_episode_watched,omitempty"`
 	LastUpdated        int64        `json:"last_updated"`
 }
+
+type PaginationMeta struct {
+	Page       int `json:"page"`
+	PerPage    int `json:"per_page"`
+	Total      int `json:"total"`
+	TotalPages int `json:"total_pages"`
+}
+
+type WatchlistResponse struct {
+	Items      []WatchlistItem `json:"items"`
+	Pagination PaginationMeta  `json:"pagination"`
+}
+
+type WatchlistQuery struct {
+	Page    int
+	PerPage int
+	Type    string // "tv", "movie", or "" for all
+	Sort    string // "last_updated", "title"
+	Order   string // "asc", "desc"
+}

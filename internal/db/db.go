@@ -68,31 +68,60 @@ func (d *DB) GetUser(ctx context.Context, id string) (*models.User, error) {
 }
 
 // GetWatchlist returns all items for a user by item ID,
-func (d *DB) GetWatchlist(ctx context.Context, userID string) (map[string]models.WatchlistItem, error) {
-	rows, err := d.Pool.Query(ctx, `
+func (d *DB) GetWatchlist(ctx context.Context, userID string, q models.WatchlistQuery) ([]models.WatchlistItem, int, error) {
+	args := []any{userID}
+	where := "WHERE user_id = $1"
+
+	if q.Type != "" {
+		args = append(args, q.Type)
+		where += fmt.Sprintf(" AND media_type = $%d", len(args))
+	}
+
+	// gets total count of items.
+	var total int
+	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM watchlist_items %s`, where)
+	if err := d.Pool.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count query: %w", err)
+	}
+
+	offset := (q.Page - 1) * q.PerPage
+	args = append(args, q.PerPage, offset)
+
+	dataQuery := fmt.Sprintf(`
 		SELECT id, media_type, tmdb_id, title, poster_path, backdrop_path,
 		       progress_watched, progress_duration,
 		       last_season_watched, last_episode_watched,
 		       show_progress, last_updated
 		FROM watchlist_items
-		WHERE user_id = $1
-		ORDER BY last_updated DESC
-	`, userID)
+		%s
+		ORDER BY %s %s
+		LIMIT $%d OFFSET $%d
+	`, where, q.Sort, q.Order, len(args)-1, len(args))
+
+	rows, err := d.Pool.Query(ctx, dataQuery, args...)
 	if err != nil {
-		return nil, err
+		return nil, 0, fmt.Errorf("data query: %w", err)
 	}
 	defer rows.Close()
 
-	result := make(map[string]models.WatchlistItem)
+	var items []models.WatchlistItem
 	for rows.Next() {
 		item, err := scanItem(rows)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
-		result[item.ID] = *item
+		items = append(items, *item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
 	}
 
-	return result, rows.Err()
+	// return empty array rather than nil for no results.
+	if items == nil {
+		items = []models.WatchlistItem{}
+	}
+
+	return items, total, nil
 }
 
 func (d *DB) GetItem(ctx context.Context, userID, itemID string) (*models.WatchlistItem, error) {
