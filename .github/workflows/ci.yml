@@ -55,6 +55,14 @@ jobs:
       - name: Download dependencies
         run: go mod tidy
 
+      - name: Install swag CLI
+        run: go install github.com/swaggo/swag/cmd/swag@latest
+
+      - name: Check swagger docs are up to date
+        run: |
+          swag init -g cmd/server/main.go -o docs --parseDependency --parseInternal
+          git diff --exit-code docs/
+
       - name: Run migrations
         run: |
           psql postgres://postgres:postgres@localhost:5432/watchlist_test?sslmode=disable \

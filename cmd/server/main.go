@@ -1,5 +1,21 @@
-// package main means this file builds into an executable program.
+// @title           Watchlist API
+// @version         1.0
+// @description     Backend API for tracking movies and TV shows.
+
+// @contact.name    ayMissouri
+// @contact.url     https://github.com/ayMissouri/watchlist-go.git
+
+// @license.name    MIT
+
+// @host            localhost:8080
+// @BasePath        /
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Enter your JWT token as: Bearer {token}
 package main
+// package main means this file builds into an executable program.
 
 import (
 	"context"

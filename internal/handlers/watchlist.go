@@ -17,8 +17,20 @@ type WatchlistHandler struct {
 	DB *db.DB
 }
 
-// GET /watchlist
-// Returns full watchlist for user.
+// GetAll godoc
+// @Summary     Get watchlist
+// @Description Returns a paginated, filterable list of watchlist items
+// @Tags        watchlist
+// @Produce     json
+// @Param       page     query int    false "Page number"        default(1)
+// @Param       per_page query int    false "Items per page"     default(20)
+// @Param       type     query string false "Filter by type"     Enums(tv, movie)
+// @Param       sort     query string false "Sort field"         Enums(last_updated, title)
+// @Param       order    query string false "Sort order"         Enums(asc, desc)
+// @Success     200 {object} models.WatchlistResponse
+// @Failure     401 {object} map[string]string
+// @Security    BearerAuth
+// @Router      /watchlist [get]
 func (h *WatchlistHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.ClaimsFromCtx(r)
 	q := parseWatchlistQuery(r)
@@ -47,8 +59,17 @@ func (h *WatchlistHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, resp)
 }
 
-// GET /watchlist/{id}
-// Returns single item by ID.
+// GetOne godoc
+// @Summary     Get watchlist item
+// @Description Returns a single watchlist item by ID
+// @Tags        watchlist
+// @Produce     json
+// @Param       id  path string true "Item ID (e.g. t63174 or m533535)"
+// @Success     200 {object} models.WatchlistItem
+// @Failure     401 {object} map[string]string
+// @Failure     404 {object} map[string]string
+// @Security    BearerAuth
+// @Router      /watchlist/{id} [get]
 func (h *WatchlistHandler) GetOne(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.ClaimsFromCtx(r)
 	itemID := chi.URLParam(r, "id")
@@ -62,8 +83,19 @@ func (h *WatchlistHandler) GetOne(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, item)
 }
 
-// PUT /watchlist/{id}
-// Creates or updates an item by ID.
+// Upsert godoc
+// @Summary     Add or update watchlist item
+// @Description Creates or fully replaces a watchlist item
+// @Tags        watchlist
+// @Accept      json
+// @Produce     json
+// @Param       id   path     string               true "Item ID (e.g. t63174 or m533535)"
+// @Param       body body     models.WatchlistItem true "Watchlist item"
+// @Success     204
+// @Failure     400 {object} map[string]string
+// @Failure     401 {object} map[string]string
+// @Security    BearerAuth
+// @Router      /watchlist/{id} [put]
 func (h *WatchlistHandler) Upsert(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.ClaimsFromCtx(r)
 	itemID := chi.URLParam(r, "id")
@@ -96,8 +128,19 @@ func (h *WatchlistHandler) Upsert(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// PATCH /watchlist/{id}/progress
-// UpdateProgress is for lightweight progress-only updates without needing to send the entire item.
+// UpdateProgress godoc
+// @Summary     Update item progress
+// @Description Lightweight progress-only update without replacing the full item
+// @Tags        watchlist
+// @Accept      json
+// @Param       id   path     string                         true "Item ID"
+// @Param       body body     models.UpdateProgressRequest   true "Progress update"
+// @Success     204
+// @Failure     400 {object} map[string]string
+// @Failure     401 {object} map[string]string
+// @Failure     404 {object} map[string]string
+// @Security    BearerAuth
+// @Router      /watchlist/{id}/progress [patch]
 func (h *WatchlistHandler) UpdateProgress(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.ClaimsFromCtx(r)
 	itemID := chi.URLParam(r, "id")
@@ -139,8 +182,16 @@ func (h *WatchlistHandler) UpdateProgress(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// DELETE /watchlist/{id}
-// Delete removes an item from the users watchlist by ID.
+// Delete godoc
+// @Summary     Remove watchlist item
+// @Description Deletes a watchlist item by ID
+// @Tags        watchlist
+// @Param       id path string true "Item ID"
+// @Success     204
+// @Failure     401 {object} map[string]string
+// @Failure     404 {object} map[string]string
+// @Security    BearerAuth
+// @Router      /watchlist/{id} [delete]
 func (h *WatchlistHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.ClaimsFromCtx(r)
 	itemID := chi.URLParam(r, "id")

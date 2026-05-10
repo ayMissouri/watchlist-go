@@ -5,11 +5,14 @@ import (
 	"net/http"
 	// time provides functionality for measuring and displaying time.
 	"time"
+	"os"
 
 	// chi is a lightweight, idiomatic and composable router for building Go HTTP services.
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 
+	_ "github.com/ayMissouri/watchlist-go.git/docs"
 	"github.com/ayMissouri/watchlist-go.git/internal/db"
 	"github.com/ayMissouri/watchlist-go.git/internal/handlers"
 	"github.com/ayMissouri/watchlist-go.git/internal/middleware"
@@ -28,6 +31,13 @@ func NewRouter(database *db.DB) http.Handler {
 	r.Use(chimiddleware.Logger)
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.Timeout(30 * time.Second))
+
+	// makes it so swagger UI is only available in non-production environments.
+	if os.Getenv("ENV") != "production" {
+		r.Get("/swagger/*", httpSwagger.Handler(
+			httpSwagger.URL("/swagger/doc.json"),
+		))
+	}
 
 	r.Get("/health", handlers.Health(database))
 
