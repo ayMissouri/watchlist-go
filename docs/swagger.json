@@ -127,6 +127,97 @@
                 }
             }
         },
+        "/discover": {
+            "get": {
+                "description": "Returns a list of popular or top-rated movies/shows. Results are cached for 1 hour.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "discover"
+                ],
+                "summary": "Discover movies or shows",
+                "parameters": [
+                    {
+                        "enum": [
+                            "movie",
+                            "series"
+                        ],
+                        "type": "string",
+                        "description": "Media type",
+                        "name": "type",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "popular",
+                            "top_rated"
+                        ],
+                        "type": "string",
+                        "description": "Sort order",
+                        "name": "sort",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/discover/all": {
+            "get": {
+                "description": "Returns all four catalogs (popular movies, popular shows, top-rated movies, top-rated shows) in a single request. All results are cached for 1 hour.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "discover"
+                ],
+                "summary": "Discover all catalogs",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverAllResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "description": "Returns API and database status",
@@ -451,6 +542,69 @@
         }
     },
     "definitions": {
+        "github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverAllResponse": {
+            "type": "object",
+            "properties": {
+                "popular_movies": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverItem"
+                    }
+                },
+                "popular_shows": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverItem"
+                    }
+                },
+                "top_rated_movies": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverItem"
+                    }
+                },
+                "top_rated_shows": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverItem"
+                    }
+                }
+            }
+        },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverItem": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "imdb_rating": {
+                    "type": "string"
+                },
+                "poster": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "year": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverItem"
+                    }
+                }
+            }
+        },
         "github_com_ayMissouri_watchlist-go_git_internal_models.EpisodeProgress": {
             "type": "object",
             "properties": {

@@ -1,5 +1,46 @@
 basePath: /
 definitions:
+  github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverAllResponse:
+    properties:
+      popular_movies:
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverItem'
+        type: array
+      popular_shows:
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverItem'
+        type: array
+      top_rated_movies:
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverItem'
+        type: array
+      top_rated_shows:
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverItem'
+        type: array
+    type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverItem:
+    properties:
+      id:
+        type: string
+      imdb_rating:
+        type: string
+      poster:
+        type: string
+      title:
+        type: string
+      type:
+        type: string
+      year:
+        type: string
+    type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverItem'
+        type: array
+    type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.EpisodeProgress:
     properties:
       episode:
@@ -185,6 +226,70 @@ paths:
       summary: Get current user
       tags:
       - auth
+  /discover:
+    get:
+      description: Returns a list of popular or top-rated movies/shows. Results are
+        cached for 1 hour.
+      parameters:
+      - description: Media type
+        enum:
+        - movie
+        - series
+        in: query
+        name: type
+        required: true
+        type: string
+      - description: Sort order
+        enum:
+        - popular
+        - top_rated
+        in: query
+        name: sort
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Bad Gateway
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Discover movies or shows
+      tags:
+      - discover
+  /discover/all:
+    get:
+      description: Returns all four catalogs (popular movies, popular shows, top-rated
+        movies, top-rated shows) in a single request. All results are cached for 1
+        hour.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverAllResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Discover all catalogs
+      tags:
+      - discover
   /health:
     get:
       description: Returns API and database status
