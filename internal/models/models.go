@@ -65,3 +65,23 @@ type WatchlistQuery struct {
 	Sort    string // "last_updated", "title"
 	Order   string // "asc", "desc"
 }
+
+type DiscoverItem struct {
+	ID         string `json:"id"`
+	Type       string `json:"type"`
+	Title      string `json:"title"`
+	Poster     string `json:"poster,omitempty"`
+	ImdbRating string `json:"imdb_rating,omitempty"`
+	Year       string `json:"year,omitempty"`
+}
+
+type DiscoverResponse struct {
+	Items []DiscoverItem `json:"items"`
+}
+
+type DiscoverAllResponse struct {
+	PopularMovies  []DiscoverItem `json:"popular_movies"`
+	PopularShows   []DiscoverItem `json:"popular_shows"`
+	TopRatedMovies []DiscoverItem `json:"top_rated_movies"`
+	TopRatedShows  []DiscoverItem `json:"top_rated_shows"`
+}

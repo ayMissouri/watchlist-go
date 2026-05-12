@@ -16,6 +16,7 @@ import (
 	"github.com/ayMissouri/watchlist-go.git/internal/db"
 	"github.com/ayMissouri/watchlist-go.git/internal/handlers"
 	"github.com/ayMissouri/watchlist-go.git/internal/middleware"
+	"github.com/ayMissouri/watchlist-go.git/internal/meta"
 )
 
 // http.Handler is an interface, so this can return anything that represents a HTTP handler.
@@ -43,6 +44,9 @@ func NewRouter(database *db.DB) http.Handler {
 
 	authHandler := &handlers.AuthHandler{DB: database}
 	wlHandler := &handlers.WatchlistHandler{DB: database}
+	discoverHandler := &handlers.DiscoverHandler{
+		Meta: meta.NewClient(),
+	}
 
 	// Public auth routes
 	r.Route("/auth", func(r chi.Router) {
@@ -62,6 +66,11 @@ func NewRouter(database *db.DB) http.Handler {
 		r.Get("/{id}", wlHandler.GetOne)
 		r.Patch("/{id}/progress", wlHandler.UpdateProgress)
 		r.Delete("/{id}", wlHandler.Delete)
+	})
+
+	r.Route("/discover", func(r chi.Router) {
+		r.Get("/",    discoverHandler.Discover)
+		r.Get("/all", discoverHandler.DiscoverAll)
 	})
 
 	return r

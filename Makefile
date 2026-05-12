@@ -12,3 +12,7 @@ check:
 	go test ./...
 	golangci-lint run
 	$(MAKE) docs
+
+.PHONY: docker
+docker:
+	docker compose up -d
