@@ -58,6 +58,46 @@ items:
           followRedirects: true
           maxRedirects: 5
   - info:
+      name: discover
+      type: folder
+      seq: 4
+    request:
+      auth: inherit
+    items:
+      - info:
+          name: discover all
+          type: http
+          seq: 2
+        http:
+          method: GET
+          url: '{{baseURL}}/discover/all'
+          auth: inherit
+        settings:
+          encodeUrl: true
+          timeout: 0
+          followRedirects: true
+          maxRedirects: 5
+      - info:
+          name: discover
+          type: http
+          seq: 1
+        http:
+          method: GET
+          url: '{{baseURL}}/discover?type=series&sort=popular'
+          params:
+            - name: type
+              value: series
+              type: query
+            - name: sort
+              value: popular
+              type: query
+          auth: inherit
+        settings:
+          encodeUrl: true
+          timeout: 0
+          followRedirects: true
+          maxRedirects: 5
+  - info:
       name: watchlist
       type: folder
       seq: 3
@@ -250,11 +290,44 @@ items:
           timeout: 0
           followRedirects: true
           maxRedirects: 5
+  - info:
+      name: details
+      type: folder
+      seq: 5
+    request:
+      auth: inherit
+    items:
+      - info:
+          name: movie details
+          type: http
+          seq: 1
+        http:
+          method: GET
+          url: '{{baseURL}}/meta/movie/tt0111161'
+          auth: inherit
+        settings:
+          encodeUrl: true
+          timeout: 0
+          followRedirects: true
+          maxRedirects: 5
+      - info:
+          name: show details
+          type: http
+          seq: 2
+        http:
+          method: GET
+          url: '{{baseURL}}/meta/series/tt3322312'
+          auth: inherit
+        settings:
+          encodeUrl: true
+          timeout: 0
+          followRedirects: true
+          maxRedirects: 5
 bundled: true
 extensions:
   bruno:
     ignore:
       - node_modules
       - .git
-    exportedAt: '2026-05-10T11:55:51.234Z'
+    exportedAt: '2026-05-13T20:13:49.908Z'
     exportedUsing: Bruno
