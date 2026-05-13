@@ -4,6 +4,9 @@ import (
 	"net/http"
 	"sync"
 	"context"
+	"errors"
+	
+	"github.com/go-chi/chi/v5"
 
 	"github.com/ayMissouri/watchlist-go.git/internal/meta"
 	"github.com/ayMissouri/watchlist-go.git/internal/models"
@@ -110,4 +113,56 @@ func (h *DiscoverHandler) DiscoverAll(w http.ResponseWriter, r *http.Request) {
 		TopRatedMovies: topRatedMovies,
 		TopRatedShows:  topRatedShows,
 	})
+}
+
+// MovieDetail godoc
+// @Summary     Get movie details
+// @Description Returns full metadata for a movie by ID. Results are cached for 24 hours.
+// @Tags        meta
+// @Produce     json
+// @Param       id  path     string true "ID (e.g. tt0111161)"
+// @Success     200 {object} models.MovieDetail
+// @Failure     404 {object} map[string]string
+// @Failure     502 {object} map[string]string
+// @Router      /meta/movie/{id} [get]
+func (h *DiscoverHandler) MovieDetail(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	detail, err := h.Meta.MovieDetail(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, meta.ErrNotFound) {
+			jsonError(w, "movie not found", http.StatusNotFound)
+			return
+		}
+		jsonError(w, "could not fetch movie details", http.StatusBadGateway)
+		return
+	}
+
+	jsonOK(w, detail)
+}
+
+// SeriesDetail godoc
+// @Summary     Get series details
+// @Description Returns full metadata for a series by ID, including all episodes in the videos array. Results are cached for 24 hours.
+// @Tags        meta
+// @Produce     json
+// @Param       id  path     string true "ID (e.g. tt3322312)"
+// @Success     200 {object} models.SeriesDetail
+// @Failure     404 {object} map[string]string
+// @Failure     502 {object} map[string]string
+// @Router      /meta/series/{id} [get]
+func (h *DiscoverHandler) SeriesDetail(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	detail, err := h.Meta.SeriesDetail(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, meta.ErrNotFound) {
+			jsonError(w, "series not found", http.StatusNotFound)
+			return
+		}
+		jsonError(w, "could not fetch series details", http.StatusBadGateway)
+		return
+	}
+
+	jsonOK(w, detail)
 }

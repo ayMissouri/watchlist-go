@@ -1,5 +1,12 @@
 basePath: /
 definitions:
+  github_com_ayMissouri_watchlist-go_git_internal_models.BehaviorHints:
+    properties:
+      defaultVideoId:
+        type: string
+      hasScheduledVideos:
+        type: boolean
+    type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverAllResponse:
     properties:
       popular_movies:
@@ -41,6 +48,25 @@ definitions:
           $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverItem'
         type: array
     type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.Episode:
+    properties:
+      episode:
+        type: integer
+      id:
+        type: string
+      imdbRating:
+        type: string
+      overview:
+        type: string
+      released:
+        type: string
+      season:
+        type: integer
+      thumbnail:
+        type: string
+      title:
+        type: string
+    type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.EpisodeProgress:
     properties:
       episode:
@@ -51,6 +77,96 @@ definitions:
         $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Progress'
       season:
         type: integer
+    type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.Link:
+    properties:
+      category:
+        type: string
+      name:
+        type: string
+      url:
+        type: string
+    type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.MovieDetail:
+    properties:
+      awards:
+        type: string
+      background:
+        type: string
+      behaviorHints:
+        $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.BehaviorHints'
+      cast:
+        items:
+          type: string
+        type: array
+      country:
+        type: string
+      description:
+        type: string
+      director:
+        items:
+          type: string
+        type: array
+      dvdRelease:
+        type: string
+      genre:
+        items:
+          type: string
+        type: array
+      genres:
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      imdb_id:
+        type: string
+      imdbRating:
+        type: string
+      links:
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Link'
+        type: array
+      logo:
+        type: string
+      moviedb_id:
+        type: integer
+      name:
+        type: string
+      popularities:
+        $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Popularities'
+      popularity:
+        type: number
+      poster:
+        type: string
+      releaseInfo:
+        type: string
+      released:
+        type: string
+      runtime:
+        type: string
+      slug:
+        type: string
+      trailerStreams:
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.TrailerStream'
+        type: array
+      trailers:
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Trailer'
+        type: array
+      type:
+        type: string
+      videos:
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Episode'
+        type: array
+      writer:
+        items:
+          type: string
+        type: array
+      year:
+        type: string
     type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.PaginationMeta:
     properties:
@@ -63,6 +179,9 @@ definitions:
       total_pages:
         type: integer
     type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.Popularities:
+    additionalProperties: {}
+    type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.Progress:
     properties:
       duration:
@@ -70,9 +189,108 @@ definitions:
       watched:
         type: number
     type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.SeriesDetail:
+    properties:
+      awards:
+        type: string
+      background:
+        type: string
+      behaviorHints:
+        $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.BehaviorHints'
+      cast:
+        items:
+          type: string
+        type: array
+      country:
+        type: string
+      description:
+        type: string
+      director:
+        items:
+          type: string
+        type: array
+      dvdRelease:
+        type: string
+      genre:
+        items:
+          type: string
+        type: array
+      genres:
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      imdb_id:
+        type: string
+      imdbRating:
+        type: string
+      links:
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Link'
+        type: array
+      logo:
+        type: string
+      moviedb_id:
+        type: integer
+      name:
+        type: string
+      popularities:
+        $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Popularities'
+      popularity:
+        type: number
+      poster:
+        type: string
+      releaseInfo:
+        type: string
+      released:
+        type: string
+      runtime:
+        type: string
+      slug:
+        type: string
+      status:
+        type: string
+      trailerStreams:
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.TrailerStream'
+        type: array
+      trailers:
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Trailer'
+        type: array
+      tvdb_id:
+        type: integer
+      type:
+        type: string
+      videos:
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Episode'
+        type: array
+      writer:
+        items:
+          type: string
+        type: array
+      year:
+        type: string
+    type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.ShowProgress:
     additionalProperties:
       $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.EpisodeProgress'
+    type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.Trailer:
+    properties:
+      source:
+        type: string
+      type:
+        type: string
+    type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.TrailerStream:
+    properties:
+      title:
+        type: string
+      ytId:
+        type: string
     type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.UpdateProgressRequest:
     properties:
@@ -303,6 +521,70 @@ paths:
       summary: Health check
       tags:
       - system
+  /meta/movie/{id}:
+    get:
+      description: Returns full metadata for a movie by ID. Results are cached for
+        24 hours.
+      parameters:
+      - description: ID (e.g. tt0111161)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.MovieDetail'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Bad Gateway
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get movie details
+      tags:
+      - meta
+  /meta/series/{id}:
+    get:
+      description: Returns full metadata for a series by ID, including all episodes
+        in the videos array. Results are cached for 24 hours.
+      parameters:
+      - description: ID (e.g. tt3322312)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.SeriesDetail'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Bad Gateway
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get series details
+      tags:
+      - meta
   /watchlist:
     get:
       description: Returns a paginated, filterable list of watchlist items

@@ -73,5 +73,10 @@ func NewRouter(database *db.DB) http.Handler {
 		r.Get("/all", discoverHandler.DiscoverAll)
 	})
 
+	r.Route("/meta", func(r chi.Router) {
+		r.Get("/movie/{id}", discoverHandler.MovieDetail)
+		r.Get("/series/{id}", discoverHandler.SeriesDetail)
+	})
+
 	return r
 }

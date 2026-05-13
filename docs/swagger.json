@@ -238,6 +238,100 @@
                 }
             }
         },
+        "/meta/movie/{id}": {
+            "get": {
+                "description": "Returns full metadata for a movie by ID. Results are cached for 24 hours.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "meta"
+                ],
+                "summary": "Get movie details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID (e.g. tt0111161)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.MovieDetail"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/meta/series/{id}": {
+            "get": {
+                "description": "Returns full metadata for a series by ID, including all episodes in the videos array. Results are cached for 24 hours.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "meta"
+                ],
+                "summary": "Get series details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID (e.g. tt3322312)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.SeriesDetail"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/watchlist": {
             "get": {
                 "security": [
@@ -542,6 +636,17 @@
         }
     },
     "definitions": {
+        "github_com_ayMissouri_watchlist-go_git_internal_models.BehaviorHints": {
+            "type": "object",
+            "properties": {
+                "defaultVideoId": {
+                    "type": "string"
+                },
+                "hasScheduledVideos": {
+                    "type": "boolean"
+                }
+            }
+        },
         "github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverAllResponse": {
             "type": "object",
             "properties": {
@@ -605,6 +710,35 @@
                 }
             }
         },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.Episode": {
+            "type": "object",
+            "properties": {
+                "episode": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "imdbRating": {
+                    "type": "string"
+                },
+                "overview": {
+                    "type": "string"
+                },
+                "released": {
+                    "type": "string"
+                },
+                "season": {
+                    "type": "integer"
+                },
+                "thumbnail": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_ayMissouri_watchlist-go_git_internal_models.EpisodeProgress": {
             "type": "object",
             "properties": {
@@ -619,6 +753,142 @@
                 },
                 "season": {
                     "type": "integer"
+                }
+            }
+        },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.Link": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.MovieDetail": {
+            "type": "object",
+            "properties": {
+                "awards": {
+                    "type": "string"
+                },
+                "background": {
+                    "type": "string"
+                },
+                "behaviorHints": {
+                    "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.BehaviorHints"
+                },
+                "cast": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "country": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "director": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "dvdRelease": {
+                    "type": "string"
+                },
+                "genre": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "genres": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "imdbRating": {
+                    "type": "string"
+                },
+                "imdb_id": {
+                    "type": "string"
+                },
+                "links": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Link"
+                    }
+                },
+                "logo": {
+                    "type": "string"
+                },
+                "moviedb_id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "popularities": {
+                    "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Popularities"
+                },
+                "popularity": {
+                    "type": "number"
+                },
+                "poster": {
+                    "type": "string"
+                },
+                "releaseInfo": {
+                    "type": "string"
+                },
+                "released": {
+                    "type": "string"
+                },
+                "runtime": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "trailerStreams": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.TrailerStream"
+                    }
+                },
+                "trailers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Trailer"
+                    }
+                },
+                "type": {
+                    "type": "string"
+                },
+                "videos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Episode"
+                    }
+                },
+                "writer": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "year": {
+                    "type": "string"
                 }
             }
         },
@@ -639,6 +909,10 @@
                 }
             }
         },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.Popularities": {
+            "type": "object",
+            "additionalProperties": {}
+        },
         "github_com_ayMissouri_watchlist-go_git_internal_models.Progress": {
             "type": "object",
             "properties": {
@@ -650,10 +924,160 @@
                 }
             }
         },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.SeriesDetail": {
+            "type": "object",
+            "properties": {
+                "awards": {
+                    "type": "string"
+                },
+                "background": {
+                    "type": "string"
+                },
+                "behaviorHints": {
+                    "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.BehaviorHints"
+                },
+                "cast": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "country": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "director": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "dvdRelease": {
+                    "type": "string"
+                },
+                "genre": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "genres": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "imdbRating": {
+                    "type": "string"
+                },
+                "imdb_id": {
+                    "type": "string"
+                },
+                "links": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Link"
+                    }
+                },
+                "logo": {
+                    "type": "string"
+                },
+                "moviedb_id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "popularities": {
+                    "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Popularities"
+                },
+                "popularity": {
+                    "type": "number"
+                },
+                "poster": {
+                    "type": "string"
+                },
+                "releaseInfo": {
+                    "type": "string"
+                },
+                "released": {
+                    "type": "string"
+                },
+                "runtime": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "trailerStreams": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.TrailerStream"
+                    }
+                },
+                "trailers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Trailer"
+                    }
+                },
+                "tvdb_id": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "videos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Episode"
+                    }
+                },
+                "writer": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "year": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_ayMissouri_watchlist-go_git_internal_models.ShowProgress": {
             "type": "object",
             "additionalProperties": {
                 "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.EpisodeProgress"
+            }
+        },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.Trailer": {
+            "type": "object",
+            "properties": {
+                "source": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.TrailerStream": {
+            "type": "object",
+            "properties": {
+                "title": {
+                    "type": "string"
+                },
+                "ytId": {
+                    "type": "string"
+                }
             }
         },
         "github_com_ayMissouri_watchlist-go_git_internal_models.UpdateProgressRequest": {
