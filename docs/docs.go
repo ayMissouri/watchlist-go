@@ -338,6 +338,63 @@ const docTemplate = `{
                 }
             }
         },
+        "/search": {
+            "get": {
+                "description": "Searches for movies and/or shows by query string. With no type filter, returns mixed results weighted by recency.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "search"
+                ],
+                "summary": "Search movies and shows",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search query",
+                        "name": "q",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "movie",
+                            "series"
+                        ],
+                        "type": "string",
+                        "description": "Filter by type",
+                        "name": "type",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.SearchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/watchlist": {
             "get": {
                 "security": [
@@ -927,6 +984,24 @@ const docTemplate = `{
                 },
                 "watched": {
                     "type": "number"
+                }
+            }
+        },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.SearchResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverItem"
+                    }
+                },
+                "query": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "leave empty for mixed results",
+                    "type": "string"
                 }
             }
         },

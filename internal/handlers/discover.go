@@ -5,6 +5,7 @@ import (
 	"sync"
 	"context"
 	"errors"
+	"strings"
 	
 	"github.com/go-chi/chi/v5"
 
@@ -165,4 +166,81 @@ func (h *DiscoverHandler) SeriesDetail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonOK(w, detail)
+}
+
+// Search godoc
+// @Summary     Search movies and shows
+// @Description Searches for movies and/or shows by query string. With no type filter, returns mixed results weighted by recency.
+// @Tags        search
+// @Produce     json
+// @Param       q    query string true  "Search query"
+// @Param       type query string false "Filter by type" Enums(movie, series)
+// @Success     200 {object} models.SearchResponse
+// @Failure     400 {object} map[string]string
+// @Failure     502 {object} map[string]string
+// @Router      /search [get]
+func (h *DiscoverHandler) Search(w http.ResponseWriter, r *http.Request) {
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
+	if query == "" {
+		jsonError(w, "q is required", http.StatusBadRequest)
+		return
+	}
+
+	mediaType := r.URL.Query().Get("type")
+	if mediaType != "" && mediaType != "movie" && mediaType != "series" {
+		jsonError(w, `type must be "movie" or "series"`, http.StatusBadRequest)
+		return
+	}
+
+	switch mediaType {
+	case "movie":
+		items, err := h.Meta.SearchMovies(r.Context(), query)
+		if err != nil {
+			jsonError(w, "search failed", http.StatusBadGateway)
+			return
+		}
+		jsonOK(w, models.SearchResponse{Items: items, Query: query, Type: "movie"})
+
+	case "series":
+		items, err := h.Meta.SearchSeries(r.Context(), query)
+		if err != nil {
+			jsonError(w, "search failed", http.StatusBadGateway)
+			return
+		}
+		jsonOK(w, models.SearchResponse{Items: items, Query: query, Type: "series"})
+
+	default:
+		var (
+			wg      sync.WaitGroup
+			movies  []models.DiscoverItem
+			series  []models.DiscoverItem
+			fetchErr error
+			errMu   sync.Mutex
+		)
+
+		fetch := func(fn func(context.Context, string) ([]models.DiscoverItem, error), dest *[]models.DiscoverItem) {
+			defer wg.Done()
+			result, err := fn(r.Context(), query)
+			if err != nil {
+				errMu.Lock()
+				fetchErr = err
+				errMu.Unlock()
+				return
+			}
+			*dest = result
+		}
+
+		wg.Add(2)
+		go fetch(h.Meta.SearchMovies,  &movies)
+		go fetch(h.Meta.SearchSeries,  &series)
+		wg.Wait()
+
+		if fetchErr != nil {
+			jsonError(w, "search failed", http.StatusBadGateway)
+			return
+		}
+
+		merged := meta.MergeAndWeight(movies, series)
+		jsonOK(w, models.SearchResponse{Items: merged, Query: query})
+	}
 }

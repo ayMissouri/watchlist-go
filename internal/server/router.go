@@ -78,5 +78,7 @@ func NewRouter(database *db.DB) http.Handler {
 		r.Get("/series/{id}", discoverHandler.SeriesDetail)
 	})
 
+	r.Get("/search", discoverHandler.Search)
+
 	return r
 }

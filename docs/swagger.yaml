@@ -189,6 +189,18 @@ definitions:
       watched:
         type: number
     type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.SearchResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverItem'
+        type: array
+      query:
+        type: string
+      type:
+        description: leave empty for mixed results
+        type: string
+    type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.SeriesDetail:
     properties:
       awards:
@@ -585,6 +597,45 @@ paths:
       summary: Get series details
       tags:
       - meta
+  /search:
+    get:
+      description: Searches for movies and/or shows by query string. With no type
+        filter, returns mixed results weighted by recency.
+      parameters:
+      - description: Search query
+        in: query
+        name: q
+        required: true
+        type: string
+      - description: Filter by type
+        enum:
+        - movie
+        - series
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.SearchResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Bad Gateway
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Search movies and shows
+      tags:
+      - search
   /watchlist:
     get:
       description: Returns a paginated, filterable list of watchlist items
