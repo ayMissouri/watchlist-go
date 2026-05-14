@@ -31,7 +31,7 @@ Copy `.env.example` to `.env` and fill in the values:
 | `DISCORD_CLIENT_SECRET` | From the Discord developer portal |
 | `DISCORD_REDIRECT_URL` | Must match what's set in Discord (`/auth/callback`) |
 | `JWT_SECRET` | Any random string, at least 32 characters |
-| `META_BASE_URL` | Base URL for the Stremio-compatible meta API |
+| `META_BASE_URL` | Base URL for the meta API |
 
 ### Run the database
 
@@ -49,7 +49,7 @@ See the `Makefile` for all available commands.
 
 ### API Docs
 
-Swagger UI is available at `/swagger/` in non-production environments.
+Swagger UI is available at `localhost:8080/swagger/index.html` in non-production environments.
 
 ## Install git hooks
 
