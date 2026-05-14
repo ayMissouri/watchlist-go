@@ -9,6 +9,7 @@ import (
 	"os"
 	"sync"
 	"time"
+	"net/url"
 
 	"github.com/ayMissouri/watchlist-go.git/internal/models"
 )
@@ -47,17 +48,8 @@ func NewClient() *Client {
 	}
 }
 
-func (c *Client) Fetch(ctx context.Context, url string) ([]models.DiscoverItem, error) {
-	// check cache first
-	c.mu.RLock()
-	entry, found := c.cache[url]
-	c.mu.RUnlock()
-
-	if found && !entry.isExpired() {
-		return entry.items, nil
-	}
-
-	// if no cache or expired then fetch data.
+// fetchCatalog has no caching
+func (c *Client) fetchCatalog(ctx context.Context, url string) ([]models.DiscoverItem, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
@@ -80,7 +72,24 @@ func (c *Client) Fetch(ctx context.Context, url string) ([]models.DiscoverItem, 
 		return nil, fmt.Errorf("decode response: %w", err)
 	}
 
-	items := transform(catalog.Metas)
+	return transform(catalog.Metas), nil
+}
+
+// Fetch is basically a cache wrapper.
+func (c *Client) Fetch(ctx context.Context, url string) ([]models.DiscoverItem, error) {
+	// check cache first
+	c.mu.RLock()
+	entry, found := c.cache[url]
+	c.mu.RUnlock()
+
+	if found && !entry.isExpired() {
+		return entry.items, nil
+	}
+
+	items, err := c.fetchCatalog(ctx, url)
+	if err != nil {
+		return nil, err
+	}
 
 	// write the data to cache.
 	c.mu.Lock()
@@ -171,6 +180,16 @@ func (c *Client) MovieDetail(ctx context.Context, id string) (*models.MovieDetai
 func (c *Client) SeriesDetail(ctx context.Context, id string) (*models.SeriesDetail, error) {
 	url := fmt.Sprintf("%s/meta/series/%s.json", c.baseURL, id)
 	return fetchDetail[models.SeriesDetail](ctx, c, url)
+}
+
+func (c *Client) SearchMovies(ctx context.Context, query string) ([]models.DiscoverItem, error) {
+	url := fmt.Sprintf("%s/catalog/movie/top/search=%s.json", c.baseURL, url.QueryEscape(query))
+	return c.fetchCatalog(ctx, url)
+}
+
+func (c *Client) SearchSeries(ctx context.Context, query string) ([]models.DiscoverItem, error) {
+	url := fmt.Sprintf("%s/catalog/series/top/search=%s.json", c.baseURL, url.QueryEscape(query))
+	return c.fetchCatalog(ctx, url)
 }
 
 // transform to fit DiscoverItem shape.

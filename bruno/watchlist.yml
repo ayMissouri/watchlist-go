@@ -58,6 +58,39 @@ items:
           followRedirects: true
           maxRedirects: 5
   - info:
+      name: details
+      type: folder
+      seq: 5
+    request:
+      auth: inherit
+    items:
+      - info:
+          name: movie details
+          type: http
+          seq: 1
+        http:
+          method: GET
+          url: '{{baseURL}}/meta/movie/tt0111161'
+          auth: inherit
+        settings:
+          encodeUrl: true
+          timeout: 0
+          followRedirects: true
+          maxRedirects: 5
+      - info:
+          name: show details
+          type: http
+          seq: 2
+        http:
+          method: GET
+          url: '{{baseURL}}/meta/series/tt3322312'
+          auth: inherit
+        settings:
+          encodeUrl: true
+          timeout: 0
+          followRedirects: true
+          maxRedirects: 5
+  - info:
       name: discover
       type: folder
       seq: 4
@@ -291,19 +324,26 @@ items:
           followRedirects: true
           maxRedirects: 5
   - info:
-      name: details
+      name: search
       type: folder
-      seq: 5
+      seq: 6
     request:
       auth: inherit
     items:
       - info:
-          name: movie details
+          name: movie search
           type: http
           seq: 1
         http:
           method: GET
-          url: '{{baseURL}}/meta/movie/tt0111161'
+          url: '{{baseURL}}/search?q=batman&type=movie'
+          params:
+            - name: q
+              value: batman
+              type: query
+            - name: type
+              value: movie
+              type: query
           auth: inherit
         settings:
           encodeUrl: true
@@ -311,12 +351,36 @@ items:
           followRedirects: true
           maxRedirects: 5
       - info:
-          name: show details
+          name: show search
           type: http
           seq: 2
         http:
           method: GET
-          url: '{{baseURL}}/meta/series/tt3322312'
+          url: '{{baseURL}}/search?q=batman&type=series'
+          params:
+            - name: q
+              value: batman
+              type: query
+            - name: type
+              value: series
+              type: query
+          auth: inherit
+        settings:
+          encodeUrl: true
+          timeout: 0
+          followRedirects: true
+          maxRedirects: 5
+      - info:
+          name: mixed search
+          type: http
+          seq: 3
+        http:
+          method: GET
+          url: '{{baseURL}}/search?q=daredevil'
+          params:
+            - name: q
+              value: daredevil
+              type: query
           auth: inherit
         settings:
           encodeUrl: true
@@ -329,5 +393,5 @@ extensions:
     ignore:
       - node_modules
       - .git
-    exportedAt: '2026-05-13T20:13:49.908Z'
+    exportedAt: '2026-05-14T19:25:56.330Z'
     exportedUsing: Bruno

@@ -164,3 +164,9 @@ type SeriesDetail struct {
 type MetaDetailResponse struct {
 	Meta any `json:"meta"`
 }
+
+type SearchResponse struct {
+	Items []DiscoverItem `json:"items"`
+	Query string         `json:"query"`
+	Type  string         `json:"type,omitempty"` // leave empty for mixed results
+}
