@@ -7,6 +7,13 @@ definitions:
       hasScheduledVideos:
         type: boolean
     type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.BulkDeleteRequest:
+    properties:
+      ids:
+        items:
+          type: string
+        type: array
+    type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverAllResponse:
     properties:
       popular_movies:
@@ -637,6 +644,44 @@ paths:
       tags:
       - search
   /watchlist:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes multiple watchlist items by ID in a single request
+      parameters:
+      - description: List of item IDs to delete
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.BulkDeleteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              format: int64
+              type: integer
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Bulk delete watchlist items
+      tags:
+      - watchlist
     get:
       description: Returns a paginated, filterable list of watchlist items
       parameters:

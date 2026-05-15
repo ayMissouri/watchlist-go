@@ -4,8 +4,8 @@ import (
 	// net/http provides HTTP client and server implementations
 	"net/http"
 	// time provides functionality for measuring and displaying time.
-	"time"
 	"os"
+	"time"
 
 	// chi is a lightweight, idiomatic and composable router for building Go HTTP services.
 	"github.com/go-chi/chi/v5"
@@ -15,8 +15,8 @@ import (
 	_ "github.com/ayMissouri/watchlist-go.git/docs"
 	"github.com/ayMissouri/watchlist-go.git/internal/db"
 	"github.com/ayMissouri/watchlist-go.git/internal/handlers"
-	"github.com/ayMissouri/watchlist-go.git/internal/middleware"
 	"github.com/ayMissouri/watchlist-go.git/internal/meta"
+	"github.com/ayMissouri/watchlist-go.git/internal/middleware"
 )
 
 // http.Handler is an interface, so this can return anything that represents a HTTP handler.
@@ -66,10 +66,11 @@ func NewRouter(database *db.DB) http.Handler {
 		r.Get("/{id}", wlHandler.GetOne)
 		r.Patch("/{id}/progress", wlHandler.UpdateProgress)
 		r.Delete("/{id}", wlHandler.Delete)
+		r.Delete("/", wlHandler.BulkDelete)
 	})
 
 	r.Route("/discover", func(r chi.Router) {
-		r.Get("/",    discoverHandler.Discover)
+		r.Get("/", discoverHandler.Discover)
 		r.Get("/all", discoverHandler.DiscoverAll)
 	})
 

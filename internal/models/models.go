@@ -92,8 +92,8 @@ type Trailer struct {
 }
 
 type TrailerStream struct {
-	Title   string `json:"title"`
-	YtID    string `json:"ytId"`
+	Title string `json:"title"`
+	YtID  string `json:"ytId"`
 }
 
 type Link struct {
@@ -103,62 +103,62 @@ type Link struct {
 }
 
 type BehaviorHints struct {
-	DefaultVideoID      *string `json:"defaultVideoId"`
-	HasScheduledVideos  bool    `json:"hasScheduledVideos"`
+	DefaultVideoID     *string `json:"defaultVideoId"`
+	HasScheduledVideos bool    `json:"hasScheduledVideos"`
 }
 
 // popularity scores across multiple platforms
 type Popularities map[string]any
 
 type Episode struct {
-	ID          string  `json:"id"`
-	Title       string  `json:"title"`
-	Season      int     `json:"season"`
-	Episode     int     `json:"episode"`
-	Released    string  `json:"released,omitempty"`
-	Thumbnail   string  `json:"thumbnail,omitempty"`
-	Overview    string  `json:"overview,omitempty"`
-	ImdbRating  string  `json:"imdbRating,omitempty"`
+	ID         string `json:"id"`
+	Title      string `json:"title"`
+	Season     int    `json:"season"`
+	Episode    int    `json:"episode"`
+	Released   string `json:"released,omitempty"`
+	Thumbnail  string `json:"thumbnail,omitempty"`
+	Overview   string `json:"overview,omitempty"`
+	ImdbRating string `json:"imdbRating,omitempty"`
 }
 
 type MovieDetail struct {
-	ID             string        `json:"id"`
-	ImdbID         string        `json:"imdb_id"`
-	MoviedbID      *int          `json:"moviedb_id,omitempty"`
-	Type           string        `json:"type"`
-	Name           string        `json:"name"`
-	Slug           string        `json:"slug,omitempty"`
-	Year           string        `json:"year,omitempty"`
-	ReleaseInfo    string        `json:"releaseInfo,omitempty"`
-	Released       string        `json:"released,omitempty"`
-	DvdRelease     *string       `json:"dvdRelease,omitempty"`
-	Runtime        string        `json:"runtime,omitempty"`
-	Country        string        `json:"country,omitempty"`
-	Description    string        `json:"description,omitempty"`
-	Genre          []string      `json:"genre,omitempty"`
-	Genres         []string      `json:"genres,omitempty"`
-	Cast           []string      `json:"cast,omitempty"`
-	Director       []string      `json:"director,omitempty"`
-	Writer         []string      `json:"writer,omitempty"`
-	Awards         string        `json:"awards,omitempty"`
-	ImdbRating     string        `json:"imdbRating,omitempty"`
-	Popularity     float64       `json:"popularity,omitempty"`
-	Popularities   Popularities  `json:"popularities,omitempty"`
-	Poster         string        `json:"poster,omitempty"`
-	Background     string        `json:"background,omitempty"`
-	Logo           string        `json:"logo,omitempty"`
-	Trailers       []Trailer     `json:"trailers,omitempty"`
-	TrailerStreams  []TrailerStream `json:"trailerStreams,omitempty"`
-	Videos         []Episode     `json:"videos,omitempty"`
-	Links          []Link        `json:"links,omitempty"`
-	BehaviorHints  BehaviorHints `json:"behaviorHints,omitempty"`
+	ID             string          `json:"id"`
+	ImdbID         string          `json:"imdb_id"`
+	MoviedbID      *int            `json:"moviedb_id,omitempty"`
+	Type           string          `json:"type"`
+	Name           string          `json:"name"`
+	Slug           string          `json:"slug,omitempty"`
+	Year           string          `json:"year,omitempty"`
+	ReleaseInfo    string          `json:"releaseInfo,omitempty"`
+	Released       string          `json:"released,omitempty"`
+	DvdRelease     *string         `json:"dvdRelease,omitempty"`
+	Runtime        string          `json:"runtime,omitempty"`
+	Country        string          `json:"country,omitempty"`
+	Description    string          `json:"description,omitempty"`
+	Genre          []string        `json:"genre,omitempty"`
+	Genres         []string        `json:"genres,omitempty"`
+	Cast           []string        `json:"cast,omitempty"`
+	Director       []string        `json:"director,omitempty"`
+	Writer         []string        `json:"writer,omitempty"`
+	Awards         string          `json:"awards,omitempty"`
+	ImdbRating     string          `json:"imdbRating,omitempty"`
+	Popularity     float64         `json:"popularity,omitempty"`
+	Popularities   Popularities    `json:"popularities,omitempty"`
+	Poster         string          `json:"poster,omitempty"`
+	Background     string          `json:"background,omitempty"`
+	Logo           string          `json:"logo,omitempty"`
+	Trailers       []Trailer       `json:"trailers,omitempty"`
+	TrailerStreams []TrailerStream `json:"trailerStreams,omitempty"`
+	Videos         []Episode       `json:"videos,omitempty"`
+	Links          []Link          `json:"links,omitempty"`
+	BehaviorHints  BehaviorHints   `json:"behaviorHints,omitempty"`
 }
 
 type SeriesDetail struct {
 	// embeds MovieDetail, so it has all the same fields, plus the ones defined below.
 	MovieDetail
-	Status  string `json:"status,omitempty"`
-	TvdbID  *int   `json:"tvdb_id,omitempty"`
+	Status string `json:"status,omitempty"`
+	TvdbID *int   `json:"tvdb_id,omitempty"`
 }
 
 type MetaDetailResponse struct {
@@ -169,4 +169,8 @@ type SearchResponse struct {
 	Items []DiscoverItem `json:"items"`
 	Query string         `json:"query"`
 	Type  string         `json:"type,omitempty"` // leave empty for mixed results
+}
+
+type BulkDeleteRequest struct {
+	IDs []string `json:"ids"`
 }
