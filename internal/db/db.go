@@ -216,3 +216,14 @@ func scanItem(row rowScanner) (*models.WatchlistItem, error) {
 
 	return item, nil
 }
+
+func (d *DB) BulkDeleteItems(ctx context.Context, userID string, ids []string) (int64, error) {
+	tag, err := d.Pool.Exec(ctx,
+		`DELETE FROM watchlist_items WHERE user_id = $1 and id = ANY($2)`,
+		userID, ids,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return tag.RowsAffected(), nil
+}

@@ -208,6 +208,41 @@ func (h *WatchlistHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// BulkDelete godoc
+// @Summary     Bulk delete watchlist items
+// @Description Deletes multiple watchlist items by ID in a single request
+// @Tags        watchlist
+// @Accept      json
+// @Produce     json
+// @Param       body body models.BulkDeleteRequest true "List of item IDs to delete"
+// @Success     200 {object} map[string]int64
+// @Failure     400 {object} map[string]string
+// @Failure     401 {object} map[string]string
+// @Security    BearerAuth
+// @Router      /watchlist [delete]
+func (h *WatchlistHandler) BulkDelete(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.ClaimsFromCtx(r)
+
+	var req models.BulkDeleteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if len(req.IDs) == 0 {
+		jsonError(w, "ids must not be empty", http.StatusBadRequest)
+		return
+	}
+
+	deleted, err := h.DB.BulkDeleteItems(r.Context(), claims.UserID, req.IDs)
+	if err != nil {
+		jsonError(w, "could not delete items", http.StatusInternalServerError)
+		return
+	}
+
+	jsonOK(w, map[string]int64{"deleted": deleted})
+}
+
 // Helper functions.
 func jsonOK(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")

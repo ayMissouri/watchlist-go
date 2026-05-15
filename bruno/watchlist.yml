@@ -131,42 +131,76 @@ items:
           followRedirects: true
           maxRedirects: 5
   - info:
+      name: search
+      type: folder
+      seq: 6
+    request:
+      auth: inherit
+    items:
+      - info:
+          name: mixed search
+          type: http
+          seq: 3
+        http:
+          method: GET
+          url: '{{baseURL}}/search?q=daredevil'
+          params:
+            - name: q
+              value: daredevil
+              type: query
+          auth: inherit
+        settings:
+          encodeUrl: true
+          timeout: 0
+          followRedirects: true
+          maxRedirects: 5
+      - info:
+          name: movie search
+          type: http
+          seq: 1
+        http:
+          method: GET
+          url: '{{baseURL}}/search?q=batman&type=movie'
+          params:
+            - name: q
+              value: batman
+              type: query
+            - name: type
+              value: movie
+              type: query
+          auth: inherit
+        settings:
+          encodeUrl: true
+          timeout: 0
+          followRedirects: true
+          maxRedirects: 5
+      - info:
+          name: show search
+          type: http
+          seq: 2
+        http:
+          method: GET
+          url: '{{baseURL}}/search?q=batman&type=series'
+          params:
+            - name: q
+              value: batman
+              type: query
+            - name: type
+              value: series
+              type: query
+          auth: inherit
+        settings:
+          encodeUrl: true
+          timeout: 0
+          followRedirects: true
+          maxRedirects: 5
+  - info:
       name: watchlist
       type: folder
       seq: 3
     request:
       auth: inherit
     items:
-      - info:
-          name: Add movie
-          type: http
-          seq: 1
-        http:
-          method: PUT
-          url: '{{baseURL}}/watchlist/m533535'
-          body:
-            type: json
-            data: |-
-              {
-                "type": "movie",
-                "tmdb_id": 533535,
-                "title": "Deadpool & Wolverine",
-                "poster_path": "/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg",
-                "backdrop_path": "/by8z9Fe8y7p4jo2YlW2SZDnptyT.jpg",
-                "progress": {
-                  "watched": 353.530349,
-                  "duration": 7667.227
-                },
-                "last_updated": 1742577064433
-              }
-          auth:
-            type: bearer
-            token: ''
-        settings:
-          encodeUrl: true
-          timeout: 0
-          followRedirects: true
-          maxRedirects: 5
       - info:
           name: Add TV show
           type: http
@@ -211,6 +245,36 @@ items:
           followRedirects: true
           maxRedirects: 5
       - info:
+          name: Add movie
+          type: http
+          seq: 1
+        http:
+          method: PUT
+          url: '{{baseURL}}/watchlist/m533535'
+          body:
+            type: json
+            data: |-
+              {
+                "type": "movie",
+                "tmdb_id": 533535,
+                "title": "Deadpool & Wolverine",
+                "poster_path": "/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg",
+                "backdrop_path": "/by8z9Fe8y7p4jo2YlW2SZDnptyT.jpg",
+                "progress": {
+                  "watched": 353.530349,
+                  "duration": 7667.227
+                },
+                "last_updated": 1742577064433
+              }
+          auth:
+            type: bearer
+            token: ''
+        settings:
+          encodeUrl: true
+          timeout: 0
+          followRedirects: true
+          maxRedirects: 5
+      - info:
           name: Get watchlist
           type: http
           seq: 3
@@ -244,21 +308,6 @@ items:
           followRedirects: true
           maxRedirects: 5
       - info:
-          name: Remove movie
-          type: http
-          seq: 6
-        http:
-          method: DELETE
-          url: '{{baseURL}}/watchlist/m533535'
-          auth:
-            type: bearer
-            token: ''
-        settings:
-          encodeUrl: true
-          timeout: 0
-          followRedirects: true
-          maxRedirects: 5
-      - info:
           name: Remove TV show
           type: http
           seq: 7
@@ -274,21 +323,12 @@ items:
           followRedirects: true
           maxRedirects: 5
       - info:
-          name: Update movie
+          name: Remove movie
           type: http
-          seq: 5
+          seq: 6
         http:
-          method: PATCH
-          url: '{{baseURL}}/watchlist/m533535/progress'
-          body:
-            type: json
-            data: |-
-              {
-                "progress": {
-                  "watched": 1200.0,
-                  "duration": 7667.227
-                }
-              }
+          method: DELETE
+          url: '{{baseURL}}/watchlist/m533535'
           auth:
             type: bearer
             token: ''
@@ -323,65 +363,49 @@ items:
           timeout: 0
           followRedirects: true
           maxRedirects: 5
-  - info:
-      name: search
-      type: folder
-      seq: 6
-    request:
-      auth: inherit
-    items:
       - info:
-          name: movie search
+          name: Update movie
           type: http
-          seq: 1
+          seq: 5
         http:
-          method: GET
-          url: '{{baseURL}}/search?q=batman&type=movie'
-          params:
-            - name: q
-              value: batman
-              type: query
-            - name: type
-              value: movie
-              type: query
-          auth: inherit
+          method: PATCH
+          url: '{{baseURL}}/watchlist/m533535/progress'
+          body:
+            type: json
+            data: |-
+              {
+                "progress": {
+                  "watched": 1200.0,
+                  "duration": 7667.227
+                }
+              }
+          auth:
+            type: bearer
+            token: ''
         settings:
           encodeUrl: true
           timeout: 0
           followRedirects: true
           maxRedirects: 5
       - info:
-          name: show search
+          name: Bulk remove
           type: http
-          seq: 2
+          seq: 8
         http:
-          method: GET
-          url: '{{baseURL}}/search?q=batman&type=series'
-          params:
-            - name: q
-              value: batman
-              type: query
-            - name: type
-              value: series
-              type: query
-          auth: inherit
-        settings:
-          encodeUrl: true
-          timeout: 0
-          followRedirects: true
-          maxRedirects: 5
-      - info:
-          name: mixed search
-          type: http
-          seq: 3
-        http:
-          method: GET
-          url: '{{baseURL}}/search?q=daredevil'
-          params:
-            - name: q
-              value: daredevil
-              type: query
-          auth: inherit
+          method: DELETE
+          url: '{{baseURL}}/watchlist'
+          body:
+            type: json
+            data: |-
+              {
+                "ids": [
+                  "m533535",
+                  "t63174"
+                ]
+              }
+          auth:
+            type: bearer
+            token: ''
         settings:
           encodeUrl: true
           timeout: 0
@@ -393,5 +417,5 @@ extensions:
     ignore:
       - node_modules
       - .git
-    exportedAt: '2026-05-14T19:25:56.330Z'
+    exportedAt: '2026-05-15T14:59:34.976Z'
     exportedUsing: Bruno
