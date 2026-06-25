@@ -4,17 +4,21 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/ayMissouri/watchlist-go.git/internal/auth"
 	"github.com/ayMissouri/watchlist-go.git/internal/db"
 	"github.com/ayMissouri/watchlist-go.git/internal/middleware"
 	"github.com/ayMissouri/watchlist-go.git/internal/models"
+	"github.com/ayMissouri/watchlist-go.git/internal/tracking"
 )
 
 type AuthHandler struct {
-	DB *db.DB
+	DB      *db.DB
+	Tracker *tracking.Service
 }
 
 // Login godoc
@@ -44,12 +48,11 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 // Callback godoc
 // @Summary     OAuth2 callback
-// @Description Handles the Discord redirect, issues a JWT
+// @Description Handles the Discord redirect, issues a JWT, and redirects to the frontend
 // @Tags        auth
-// @Produce     json
 // @Param       code  query string true "OAuth2 code from Discord"
 // @Param       state query string true "CSRF state token"
-// @Success     200 {object} map[string]interface{}
+// @Success     307
 // @Failure     400 {object} map[string]string
 // @Failure     500 {object} map[string]string
 // @Router      /auth/callback [get]
@@ -89,21 +92,32 @@ func (h *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Issue a JWT and return it
+	// Issue a JWT and hand the user back to the frontend with it
 	token, err := auth.IssueJWT(user.ID, user.Username)
 	if err != nil {
 		http.Error(w, `{"error":"could not issue token"}`, http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(map[string]any{
-		"token": token,
-		"user":  user,
-	}); err != nil {
-		http.Error(w, `{"error":"failed to encode response"}`, http.StatusInternalServerError)
-		return
+	// Record the login for session/device stats
+	if h.Tracker != nil {
+		h.Tracker.Record(r.Context(), models.UserEvent{
+			UserID:    user.ID,
+			EventType: models.EventLogin,
+			Metadata: map[string]any{
+				"ip":         clientIP(r),
+				"user_agent": r.UserAgent(),
+			},
+		})
 	}
+
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:3000"
+	}
+
+	redirectURL := frontendURL + "/auth/callback?token=" + url.QueryEscape(token)
+	http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
 }
 
 // Me godoc
@@ -131,4 +145,11 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"failed to encode response"}`, http.StatusInternalServerError)
 		return
 	}
+}
+
+func clientIP(r *http.Request) string {
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return host
+	}
+	return r.RemoteAddr
 }
