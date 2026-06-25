@@ -23,10 +23,7 @@ const docTemplate = `{
     "paths": {
         "/auth/callback": {
             "get": {
-                "description": "Handles the Discord redirect, issues a JWT",
-                "produces": [
-                    "application/json"
-                ],
+                "description": "Handles the Discord redirect, issues a JWT, and redirects to the frontend",
                 "tags": [
                     "auth"
                 ],
@@ -48,12 +45,8 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
+                    "307": {
+                        "description": "Temporary Redirect"
                     },
                     "400": {
                         "description": "Bad Request",
@@ -133,9 +126,86 @@ const docTemplate = `{
                 }
             }
         },
+        "/calendar": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the user's upcoming releases (unreleased movies and not-yet-aired episodes of watchlisted shows), soonest first.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "calendar"
+                ],
+                "summary": "Get calendar",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.CalendarResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/calendar/refresh": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Re-syncs the user's calendar from their watchlist against the meta service, then returns the updated list. Useful right after adding an upcoming title.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "calendar"
+                ],
+                "summary": "Refresh calendar",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.CalendarResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/discover": {
             "get": {
-                "description": "Returns a list of popular or top-rated movies/shows. Results are cached for 1 hour.",
+                "description": "Returns a single catalog of movies/shows. Use ` + "`" + `sort` + "`" + ` (with optional ` + "`" + `genre` + "`" + `) for the popular/top-rated catalogs, ` + "`" + `year` + "`" + ` for one release year, or ` + "`" + `provider` + "`" + ` for a streaming service. ` + "`" + `provider` + "`" + ` takes precedence over ` + "`" + `year` + "`" + `, which takes precedence over ` + "`" + `sort` + "`" + `. Results are cached for 1 hour.",
                 "produces": [
                     "application/json"
                 ],
@@ -161,10 +231,34 @@ const docTemplate = `{
                             "top_rated"
                         ],
                         "type": "string",
-                        "description": "Sort order",
+                        "description": "Sort order (default popular)",
                         "name": "sort",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Genre filter, e.g. action, sci-fi (series also: reality-tv, talk-show, game-show)",
+                        "name": "genre",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Release year, e.g. 2025 (overrides sort)",
+                        "name": "year",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "netflix",
+                            "hbomax",
+                            "disney",
+                            "prime",
+                            "appletv"
+                        ],
+                        "type": "string",
+                        "description": "Streaming provider (overrides sort and year)",
+                        "name": "provider",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -214,6 +308,98 @@ const docTemplate = `{
                     },
                     "502": {
                         "description": "Bad Gateway",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/events": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the user's most recent tracked events, newest first. Useful for a transparency/activity feed.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "events"
+                ],
+                "summary": "Recent activity",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Max events to return",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.EventsResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Accepts a batch of client-reported events (play/pause, heartbeats, page views, etc.) and appends them to the user's activity log. Events with an empty or over-long type are skipped.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "events"
+                ],
+                "summary": "Ingest activity events",
+                "parameters": [
+                    {
+                        "description": "Batch of events",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.RecordEventsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -338,6 +524,123 @@ const docTemplate = `{
                 }
             }
         },
+        "/notifications": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the user's most recent notifications plus the unread count",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "notifications"
+                ],
+                "summary": "List notifications",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.NotificationsResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/notifications/read-all": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Marks every unread notification for the user as read",
+                "tags": [
+                    "notifications"
+                ],
+                "summary": "Mark all notifications read",
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/notifications/{id}/read": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Marks a single notification as read",
+                "tags": [
+                    "notifications"
+                ],
+                "summary": "Mark a notification read",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Notification ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/search": {
             "get": {
                 "description": "Searches for movies and/or shows by query string. With no type filter, returns mixed results weighted by recency.",
@@ -395,6 +698,110 @@ const docTemplate = `{
                 }
             }
         },
+        "/stats": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the authenticated user's all-time activity summary: totals, watch time, top genres and top titles.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "stats"
+                ],
+                "summary": "Profile stats",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.ProfileStats"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/stats/wrapped": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the authenticated user's \"wrapped\" stats for a year: watch time, counts, top genres/titles/decades, monthly/hourly/weekday histograms, streaks and night-owl flag. Defaults to the current year.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "stats"
+                ],
+                "summary": "Year in review",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 2026,
+                        "description": "Calendar year (UTC)",
+                        "name": "year",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.WrappedStats"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/watchlist": {
             "get": {
                 "security": [
@@ -433,6 +840,19 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Filter by type",
                         "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "watching",
+                            "watched",
+                            "plan_to_watch",
+                            "paused",
+                            "dropped"
+                        ],
+                        "type": "string",
+                        "description": "Filter by status",
+                        "name": "status",
                         "in": "query"
                     },
                     {
@@ -755,6 +1175,73 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/watchlist/{id}/status": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Sets the watch status of an item (watching, watched, plan_to_watch, paused, dropped)",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "watchlist"
+                ],
+                "summary": "Update item status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Item ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Status update",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.UpdateStatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -777,6 +1264,108 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.CalendarEntry": {
+            "type": "object",
+            "properties": {
+                "episode": {
+                    "type": "integer"
+                },
+                "episode_title": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "imdb_id": {
+                    "type": "string"
+                },
+                "item_id": {
+                    "type": "string"
+                },
+                "link": {
+                    "type": "string"
+                },
+                "media_type": {
+                    "description": "\"tv\" or \"movie\"",
+                    "type": "string"
+                },
+                "poster_path": {
+                    "type": "string"
+                },
+                "release_date": {
+                    "description": "ReleaseDate is epoch milliseconds, matching the time unit used elsewhere\nin the API (watchlist last_updated, notifications created_at).",
+                    "type": "integer"
+                },
+                "released": {
+                    "description": "Released is true once the release date has passed.",
+                    "type": "boolean"
+                },
+                "season": {
+                    "description": "Season/Episode are zero for movies.",
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.CalendarResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.CalendarEntry"
+                    }
+                }
+            }
+        },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.ClientEvent": {
+            "type": "object",
+            "properties": {
+                "episode": {
+                    "type": "integer"
+                },
+                "event_type": {
+                    "type": "string"
+                },
+                "genres": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "imdb_id": {
+                    "type": "string"
+                },
+                "item_id": {
+                    "type": "string"
+                },
+                "media_type": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "occurred_at": {
+                    "description": "OccurredAt is optional epoch ms; the server stamps \"now\" when it's missing.",
+                    "type": "integer"
+                },
+                "release_year": {
+                    "type": "integer"
+                },
+                "runtime_minutes": {
+                    "type": "integer"
+                },
+                "season": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
                 }
             }
         },
@@ -812,6 +1401,9 @@ const docTemplate = `{
         "github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverItem": {
             "type": "object",
             "properties": {
+                "background": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -886,6 +1478,28 @@ const docTemplate = `{
                 },
                 "season": {
                     "type": "integer"
+                }
+            }
+        },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.EventsResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.UserEvent"
+                    }
+                }
+            }
+        },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.LabelCount": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "label": {
+                    "type": "string"
                 }
             }
         },
@@ -1025,6 +1639,49 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.Notification": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "link": {
+                    "type": "string"
+                },
+                "poster_path": {
+                    "type": "string"
+                },
+                "read": {
+                    "type": "boolean"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.NotificationsResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Notification"
+                    }
+                },
+                "unread": {
+                    "type": "integer"
+                }
+            }
+        },
         "github_com_ayMissouri_watchlist-go_git_internal_models.PaginationMeta": {
             "type": "object",
             "properties": {
@@ -1046,6 +1703,47 @@ const docTemplate = `{
             "type": "object",
             "additionalProperties": {}
         },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.ProfileStats": {
+            "type": "object",
+            "properties": {
+                "episodes_watched": {
+                    "type": "integer"
+                },
+                "first_event_at": {
+                    "type": "integer"
+                },
+                "items_added": {
+                    "type": "integer"
+                },
+                "last_event_at": {
+                    "type": "integer"
+                },
+                "movies_watched": {
+                    "type": "integer"
+                },
+                "shows_completed": {
+                    "type": "integer"
+                },
+                "top_genres": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.LabelCount"
+                    }
+                },
+                "top_titles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.LabelCount"
+                    }
+                },
+                "total_events": {
+                    "type": "integer"
+                },
+                "watch_time_minutes": {
+                    "type": "integer"
+                }
+            }
+        },
         "github_com_ayMissouri_watchlist-go_git_internal_models.Progress": {
             "type": "object",
             "properties": {
@@ -1054,6 +1752,17 @@ const docTemplate = `{
                 },
                 "watched": {
                     "type": "number"
+                }
+            }
+        },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.RecordEventsRequest": {
+            "type": "object",
+            "properties": {
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.ClientEvent"
+                    }
                 }
             }
         },
@@ -1234,6 +1943,12 @@ const docTemplate = `{
         "github_com_ayMissouri_watchlist-go_git_internal_models.UpdateProgressRequest": {
             "type": "object",
             "properties": {
+                "episodes_total": {
+                    "type": "integer"
+                },
+                "episodes_watched": {
+                    "type": "integer"
+                },
                 "last_episode_watched": {
                     "type": "integer"
                 },
@@ -1244,10 +1959,26 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "progress": {
-                    "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Progress"
+                    "description": "Progress is optional: a show episode toggle omits it so the player's\nplayback position is left untouched. Only overwritten when present.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Progress"
+                        }
+                    ]
                 },
                 "show_progress": {
                     "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.ShowProgress"
+                },
+                "status": {
+                    "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.WatchlistStatus"
+                }
+            }
+        },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.UpdateStatusRequest": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.WatchlistStatus"
                 }
             }
         },
@@ -1269,13 +2000,91 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.UserEvent": {
+            "type": "object",
+            "properties": {
+                "episode": {
+                    "type": "integer"
+                },
+                "event_type": {
+                    "type": "string"
+                },
+                "genres": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "imdb_id": {
+                    "type": "string"
+                },
+                "item_id": {
+                    "type": "string"
+                },
+                "media_type": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "occurred_at": {
+                    "type": "integer"
+                },
+                "release_year": {
+                    "type": "integer"
+                },
+                "runtime_minutes": {
+                    "type": "integer"
+                },
+                "season": {
+                    "type": "integer"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.WatchRef": {
+            "type": "object",
+            "properties": {
+                "item_id": {
+                    "type": "string"
+                },
+                "occurred_at": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_ayMissouri_watchlist-go_git_internal_models.WatchlistItem": {
             "type": "object",
             "properties": {
                 "backdrop_path": {
                     "type": "string"
                 },
+                "episodes_total": {
+                    "type": "integer"
+                },
+                "episodes_watched": {
+                    "description": "Aggregate episode counts for shows, so list/home views can render a\nprogress bar without fetching episode metadata.",
+                    "type": "integer"
+                },
                 "id": {
+                    "type": "string"
+                },
+                "imdb_id": {
                     "type": "string"
                 },
                 "last_episode_watched": {
@@ -1292,10 +2101,18 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "progress": {
-                    "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Progress"
+                    "description": "Progress is the video player's per-video playback position (seconds\nwatched / total duration). For shows, episode-watch progress lives in the\nboundary + EpisodesWatched/EpisodesTotal below, not here.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Progress"
+                        }
+                    ]
                 },
                 "show_progress": {
                     "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.ShowProgress"
+                },
+                "status": {
+                    "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.WatchlistStatus"
                 },
                 "title": {
                     "type": "string"
@@ -1319,6 +2136,113 @@ const docTemplate = `{
                 },
                 "pagination": {
                     "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.PaginationMeta"
+                }
+            }
+        },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.WatchlistStatus": {
+            "type": "string",
+            "enum": [
+                "watching",
+                "watched",
+                "plan_to_watch",
+                "paused",
+                "dropped"
+            ],
+            "x-enum-varnames": [
+                "StatusWatching",
+                "StatusWatched",
+                "StatusPlanToWatch",
+                "StatusPaused",
+                "StatusDropped"
+            ]
+        },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.WrappedStats": {
+            "type": "object",
+            "properties": {
+                "app_opens": {
+                    "type": "integer"
+                },
+                "busiest_month": {
+                    "type": "string"
+                },
+                "decades": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.LabelCount"
+                    }
+                },
+                "episodes_watched": {
+                    "type": "integer"
+                },
+                "first_watch": {
+                    "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.WatchRef"
+                },
+                "items_added": {
+                    "type": "integer"
+                },
+                "last_watch": {
+                    "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.WatchRef"
+                },
+                "longest_streak_days": {
+                    "type": "integer"
+                },
+                "movies_watched": {
+                    "type": "integer"
+                },
+                "night_owl": {
+                    "type": "boolean"
+                },
+                "peak_hour": {
+                    "type": "integer"
+                },
+                "searches": {
+                    "type": "integer"
+                },
+                "shows_completed": {
+                    "type": "integer"
+                },
+                "shows_started": {
+                    "type": "integer"
+                },
+                "top_genres": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.LabelCount"
+                    }
+                },
+                "top_titles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.LabelCount"
+                    }
+                },
+                "unique_titles": {
+                    "type": "integer"
+                },
+                "watch_time_minutes": {
+                    "type": "integer"
+                },
+                "watches_by_hour": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "watches_by_month": {
+                    "description": "Fixed-length histograms: 12 months (Jan..Dec), 24 hours (0..23),\n7 weekdays (Sun..Sat). All counts are of watch events (UTC).",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "watches_by_weekday": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "year": {
+                    "type": "integer"
                 }
             }
         },

@@ -14,6 +14,78 @@ definitions:
           type: string
         type: array
     type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.CalendarEntry:
+    properties:
+      episode:
+        type: integer
+      episode_title:
+        type: string
+      id:
+        type: integer
+      imdb_id:
+        type: string
+      item_id:
+        type: string
+      link:
+        type: string
+      media_type:
+        description: '"tv" or "movie"'
+        type: string
+      poster_path:
+        type: string
+      release_date:
+        description: |-
+          ReleaseDate is epoch milliseconds, matching the time unit used elsewhere
+          in the API (watchlist last_updated, notifications created_at).
+        type: integer
+      released:
+        description: Released is true once the release date has passed.
+        type: boolean
+      season:
+        description: Season/Episode are zero for movies.
+        type: integer
+      title:
+        type: string
+    type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.CalendarResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.CalendarEntry'
+        type: array
+    type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.ClientEvent:
+    properties:
+      episode:
+        type: integer
+      event_type:
+        type: string
+      genres:
+        items:
+          type: string
+        type: array
+      imdb_id:
+        type: string
+      item_id:
+        type: string
+      media_type:
+        type: string
+      metadata:
+        additionalProperties: {}
+        type: object
+      occurred_at:
+        description: OccurredAt is optional epoch ms; the server stamps "now" when
+          it's missing.
+        type: integer
+      release_year:
+        type: integer
+      runtime_minutes:
+        type: integer
+      season:
+        type: integer
+      title:
+        type: string
+    type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverAllResponse:
     properties:
       popular_movies:
@@ -35,6 +107,8 @@ definitions:
     type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverItem:
     properties:
+      background:
+        type: string
       id:
         type: string
       imdb_rating:
@@ -84,6 +158,20 @@ definitions:
         $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Progress'
       season:
         type: integer
+    type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.EventsResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.UserEvent'
+        type: array
+    type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.LabelCount:
+    properties:
+      count:
+        type: integer
+      label:
+        type: string
     type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.Link:
     properties:
@@ -175,6 +263,34 @@ definitions:
       year:
         type: string
     type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.Notification:
+    properties:
+      body:
+        type: string
+      created_at:
+        type: integer
+      id:
+        type: integer
+      link:
+        type: string
+      poster_path:
+        type: string
+      read:
+        type: boolean
+      title:
+        type: string
+      type:
+        type: string
+    type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.NotificationsResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Notification'
+        type: array
+      unread:
+        type: integer
+    type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.PaginationMeta:
     properties:
       page:
@@ -189,12 +305,46 @@ definitions:
   github_com_ayMissouri_watchlist-go_git_internal_models.Popularities:
     additionalProperties: {}
     type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.ProfileStats:
+    properties:
+      episodes_watched:
+        type: integer
+      first_event_at:
+        type: integer
+      items_added:
+        type: integer
+      last_event_at:
+        type: integer
+      movies_watched:
+        type: integer
+      shows_completed:
+        type: integer
+      top_genres:
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.LabelCount'
+        type: array
+      top_titles:
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.LabelCount'
+        type: array
+      total_events:
+        type: integer
+      watch_time_minutes:
+        type: integer
+    type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.Progress:
     properties:
       duration:
         type: number
       watched:
         type: number
+    type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.RecordEventsRequest:
+    properties:
+      events:
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.ClientEvent'
+        type: array
     type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.SearchResponse:
     properties:
@@ -313,6 +463,10 @@ definitions:
     type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.UpdateProgressRequest:
     properties:
+      episodes_total:
+        type: integer
+      episodes_watched:
+        type: integer
       last_episode_watched:
         type: integer
       last_season_watched:
@@ -320,9 +474,20 @@ definitions:
       last_updated:
         type: integer
       progress:
-        $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Progress'
+        allOf:
+        - $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Progress'
+        description: |-
+          Progress is optional: a show episode toggle omits it so the player's
+          playback position is left untouched. Only overwritten when present.
       show_progress:
         $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.ShowProgress'
+      status:
+        $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.WatchlistStatus'
+    type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.UpdateStatusRequest:
+    properties:
+      status:
+        $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.WatchlistStatus'
     type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.User:
     properties:
@@ -337,11 +502,65 @@ definitions:
       username:
         type: string
     type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.UserEvent:
+    properties:
+      episode:
+        type: integer
+      event_type:
+        type: string
+      genres:
+        items:
+          type: string
+        type: array
+      id:
+        type: integer
+      imdb_id:
+        type: string
+      item_id:
+        type: string
+      media_type:
+        type: string
+      metadata:
+        additionalProperties: {}
+        type: object
+      occurred_at:
+        type: integer
+      release_year:
+        type: integer
+      runtime_minutes:
+        type: integer
+      season:
+        type: integer
+      source:
+        type: string
+      title:
+        type: string
+      user_id:
+        type: string
+    type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.WatchRef:
+    properties:
+      item_id:
+        type: string
+      occurred_at:
+        type: integer
+      title:
+        type: string
+    type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.WatchlistItem:
     properties:
       backdrop_path:
         type: string
+      episodes_total:
+        type: integer
+      episodes_watched:
+        description: |-
+          Aggregate episode counts for shows, so list/home views can render a
+          progress bar without fetching episode metadata.
+        type: integer
       id:
+        type: string
+      imdb_id:
         type: string
       last_episode_watched:
         type: integer
@@ -353,9 +572,16 @@ definitions:
       poster_path:
         type: string
       progress:
-        $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Progress'
+        allOf:
+        - $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Progress'
+        description: |-
+          Progress is the video player's per-video playback position (seconds
+          watched / total duration). For shows, episode-watch progress lives in the
+          boundary + EpisodesWatched/EpisodesTotal below, not here.
       show_progress:
         $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.ShowProgress'
+      status:
+        $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.WatchlistStatus'
       title:
         type: string
       tmdb_id:
@@ -371,6 +597,82 @@ definitions:
         type: array
       pagination:
         $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.PaginationMeta'
+    type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.WatchlistStatus:
+    enum:
+    - watching
+    - watched
+    - plan_to_watch
+    - paused
+    - dropped
+    type: string
+    x-enum-varnames:
+    - StatusWatching
+    - StatusWatched
+    - StatusPlanToWatch
+    - StatusPaused
+    - StatusDropped
+  github_com_ayMissouri_watchlist-go_git_internal_models.WrappedStats:
+    properties:
+      app_opens:
+        type: integer
+      busiest_month:
+        type: string
+      decades:
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.LabelCount'
+        type: array
+      episodes_watched:
+        type: integer
+      first_watch:
+        $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.WatchRef'
+      items_added:
+        type: integer
+      last_watch:
+        $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.WatchRef'
+      longest_streak_days:
+        type: integer
+      movies_watched:
+        type: integer
+      night_owl:
+        type: boolean
+      peak_hour:
+        type: integer
+      searches:
+        type: integer
+      shows_completed:
+        type: integer
+      shows_started:
+        type: integer
+      top_genres:
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.LabelCount'
+        type: array
+      top_titles:
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.LabelCount'
+        type: array
+      unique_titles:
+        type: integer
+      watch_time_minutes:
+        type: integer
+      watches_by_hour:
+        items:
+          type: integer
+        type: array
+      watches_by_month:
+        description: |-
+          Fixed-length histograms: 12 months (Jan..Dec), 24 hours (0..23),
+          7 weekdays (Sun..Sat). All counts are of watch events (UTC).
+        items:
+          type: integer
+        type: array
+      watches_by_weekday:
+        items:
+          type: integer
+        type: array
+      year:
+        type: integer
     type: object
   internal_handlers.HealthResponse:
     properties:
@@ -392,7 +694,8 @@ info:
 paths:
   /auth/callback:
     get:
-      description: Handles the Discord redirect, issues a JWT
+      description: Handles the Discord redirect, issues a JWT, and redirects to the
+        frontend
       parameters:
       - description: OAuth2 code from Discord
         in: query
@@ -404,14 +707,9 @@ paths:
         name: state
         required: true
         type: string
-      produces:
-      - application/json
       responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
+        "307":
+          description: Temporary Redirect
         "400":
           description: Bad Request
           schema:
@@ -463,10 +761,63 @@ paths:
       summary: Get current user
       tags:
       - auth
+  /calendar:
+    get:
+      description: Returns the user's upcoming releases (unreleased movies and not-yet-aired
+        episodes of watchlisted shows), soonest first.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.CalendarResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get calendar
+      tags:
+      - calendar
+  /calendar/refresh:
+    post:
+      description: Re-syncs the user's calendar from their watchlist against the meta
+        service, then returns the updated list. Useful right after adding an upcoming
+        title.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.CalendarResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Refresh calendar
+      tags:
+      - calendar
   /discover:
     get:
-      description: Returns a list of popular or top-rated movies/shows. Results are
-        cached for 1 hour.
+      description: Returns a single catalog of movies/shows. Use `sort` (with optional
+        `genre`) for the popular/top-rated catalogs, `year` for one release year,
+        or `provider` for a streaming service. `provider` takes precedence over `year`,
+        which takes precedence over `sort`. Results are cached for 1 hour.
       parameters:
       - description: Media type
         enum:
@@ -476,13 +827,31 @@ paths:
         name: type
         required: true
         type: string
-      - description: Sort order
+      - description: Sort order (default popular)
         enum:
         - popular
         - top_rated
         in: query
         name: sort
-        required: true
+        type: string
+      - description: 'Genre filter, e.g. action, sci-fi (series also: reality-tv,
+          talk-show, game-show)'
+        in: query
+        name: genre
+        type: string
+      - description: Release year, e.g. 2025 (overrides sort)
+        in: query
+        name: year
+        type: string
+      - description: Streaming provider (overrides sort and year)
+        enum:
+        - netflix
+        - hbomax
+        - disney
+        - prime
+        - appletv
+        in: query
+        name: provider
         type: string
       produces:
       - application/json
@@ -527,6 +896,67 @@ paths:
       summary: Discover all catalogs
       tags:
       - discover
+  /events:
+    get:
+      description: Returns the user's most recent tracked events, newest first. Useful
+        for a transparency/activity feed.
+      parameters:
+      - default: 50
+        description: Max events to return
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.EventsResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Recent activity
+      tags:
+      - events
+    post:
+      consumes:
+      - application/json
+      description: Accepts a batch of client-reported events (play/pause, heartbeats,
+        page views, etc.) and appends them to the user's activity log. Events with
+        an empty or over-long type are skipped.
+      parameters:
+      - description: Batch of events
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.RecordEventsRequest'
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Ingest activity events
+      tags:
+      - events
   /health:
     get:
       description: Returns API and database status
@@ -604,6 +1034,79 @@ paths:
       summary: Get series details
       tags:
       - meta
+  /notifications:
+    get:
+      description: Returns the user's most recent notifications plus the unread count
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.NotificationsResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List notifications
+      tags:
+      - notifications
+  /notifications/{id}/read:
+    patch:
+      description: Marks a single notification as read
+      parameters:
+      - description: Notification ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Mark a notification read
+      tags:
+      - notifications
+  /notifications/read-all:
+    patch:
+      description: Marks every unread notification for the user as read
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Mark all notifications read
+      tags:
+      - notifications
   /search:
     get:
       description: Searches for movies and/or shows by query string. With no type
@@ -643,6 +1146,75 @@ paths:
       summary: Search movies and shows
       tags:
       - search
+  /stats:
+    get:
+      description: 'Returns the authenticated user''s all-time activity summary: totals,
+        watch time, top genres and top titles.'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.ProfileStats'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Profile stats
+      tags:
+      - stats
+  /stats/wrapped:
+    get:
+      description: 'Returns the authenticated user''s "wrapped" stats for a year:
+        watch time, counts, top genres/titles/decades, monthly/hourly/weekday histograms,
+        streaks and night-owl flag. Defaults to the current year.'
+      parameters:
+      - default: 2026
+        description: Calendar year (UTC)
+        in: query
+        name: year
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.WrappedStats'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Year in review
+      tags:
+      - stats
   /watchlist:
     delete:
       consumes:
@@ -701,6 +1273,16 @@ paths:
         - movie
         in: query
         name: type
+        type: string
+      - description: Filter by status
+        enum:
+        - watching
+        - watched
+        - plan_to_watch
+        - paused
+        - dropped
+        in: query
+        name: status
         type: string
       - description: Sort field
         enum:
@@ -874,6 +1456,50 @@ paths:
       security:
       - BearerAuth: []
       summary: Update item progress
+      tags:
+      - watchlist
+  /watchlist/{id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: Sets the watch status of an item (watching, watched, plan_to_watch,
+        paused, dropped)
+      parameters:
+      - description: Item ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Status update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.UpdateStatusRequest'
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update item status
       tags:
       - watchlist
 securityDefinitions:
