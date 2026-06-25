@@ -5,6 +5,7 @@ type Meta struct {
 	Type       string `json:"type"`
 	Name       string `json:"name"`
 	Poster     string `json:"poster"`
+	Background string `json:"background"`
 	ImdbRating string `json:"imdbRating"`
 	Year       string `json:"year"`
 }

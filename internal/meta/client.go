@@ -17,6 +17,11 @@ import (
 const cacheTTL = time.Hour
 const detailCacheTTL = 24 * time.Hour
 
+// defaultStreamingBaseURL is the public Stremio catalog addon that serves the
+// per-service catalogs (Netflix, HBO Max, Disney+, Prime Video, Apple TV+).
+// Override with STREAMING_BASE_URL.
+const defaultStreamingBaseURL = "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club"
+
 var ErrNotFound = errors.New("not found")
 
 // this holds cached data and its expiration time.
@@ -32,19 +37,26 @@ func (e *cacheEntry) isExpired() bool {
 
 // sync.RWMutex allows multiple concurrent readers but only one writer.
 type Client struct {
-	httpClient *http.Client
-	baseURL    string
-	mu         sync.RWMutex
-	cache      map[string]cacheEntry
+	httpClient   *http.Client
+	baseURL      string
+	streamingURL string
+	mu           sync.RWMutex
+	cache        map[string]cacheEntry
 }
 
 func NewClient() *Client {
 	baseURL := os.Getenv("META_BASE_URL")
 
+	streamingURL := os.Getenv("STREAMING_BASE_URL")
+	if streamingURL == "" {
+		streamingURL = defaultStreamingBaseURL
+	}
+
 	return &Client{
-		httpClient: &http.Client{Timeout: 10 * time.Second},
-		baseURL:    baseURL,
-		cache:      make(map[string]cacheEntry),
+		httpClient:   &http.Client{Timeout: 10 * time.Second},
+		baseURL:      baseURL,
+		streamingURL: streamingURL,
+		cache:        make(map[string]cacheEntry),
 	}
 }
 
@@ -172,6 +184,29 @@ func (c *Client) TopRatedShows(ctx context.Context) ([]models.DiscoverItem, erro
 	return c.Fetch(ctx, fmt.Sprintf("%s/catalog/series/imdbRating.json", c.baseURL))
 }
 
+// catalogURL builds a catalog URL: /catalog/{mediaType}/{sort}.json.
+func (c *Client) catalogURL(mediaType, sort, genre string) string {
+	if genre == "" {
+		return fmt.Sprintf("%s/catalog/%s/%s.json", c.baseURL, mediaType, sort)
+	}
+	return fmt.Sprintf("%s/catalog/%s/%s/genre=%s.json", c.baseURL, mediaType, sort, url.QueryEscape(genre))
+}
+
+// Catalog fetches a catalog sorted by `sort` ("top" for popular, "imdbRating" for top-rated)
+func (c *Client) Catalog(ctx context.Context, mediaType, sort, genre string) ([]models.DiscoverItem, error) {
+	return c.Fetch(ctx, c.catalogURL(mediaType, sort, genre))
+}
+
+// CatalogByYear fetches the "year" catalog for one release year.
+func (c *Client) CatalogByYear(ctx context.Context, mediaType, year string) ([]models.DiscoverItem, error) {
+	return c.Fetch(ctx, c.catalogURL(mediaType, "year", year))
+}
+
+// ProviderCatalog fetches a streaming-service catalog (Netflix, HBO Max, ...)
+func (c *Client) ProviderCatalog(ctx context.Context, mediaType, provider string) ([]models.DiscoverItem, error) {
+	return c.Fetch(ctx, fmt.Sprintf("%s/catalog/%s/%s.json", c.streamingURL, mediaType, provider))
+}
+
 func (c *Client) MovieDetail(ctx context.Context, id string) (*models.MovieDetail, error) {
 	url := fmt.Sprintf("%s/meta/movie/%s.json", c.baseURL, id)
 	return fetchDetail[models.MovieDetail](ctx, c, url)
@@ -201,6 +236,7 @@ func transform(metas []Meta) []models.DiscoverItem {
 			Type:       m.Type,
 			Title:      m.Name,
 			Poster:     m.Poster,
+			Background: m.Background,
 			ImdbRating: m.ImdbRating,
 			Year:       m.Year,
 		})

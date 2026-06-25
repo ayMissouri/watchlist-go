@@ -6,38 +6,50 @@ import (
 	"context"
 	"errors"
 	"strings"
-	
+
 	"github.com/go-chi/chi/v5"
 
 	"github.com/ayMissouri/watchlist-go.git/internal/meta"
+	"github.com/ayMissouri/watchlist-go.git/internal/middleware"
 	"github.com/ayMissouri/watchlist-go.git/internal/models"
+	"github.com/ayMissouri/watchlist-go.git/internal/tracking"
 )
 
 type DiscoverHandler struct {
-	Meta *meta.Client
+	Meta    *meta.Client
+	Tracker *tracking.Service
+}
+
+// catalogSort maps the public sort values to the catalog names.
+var catalogSort = map[string]string{
+	"popular":   "top",
+	"top_rated": "imdbRating",
 }
 
 // Discover godoc
 // @Summary     Discover movies or shows
-// @Description Returns a list of popular or top-rated movies/shows. Results are cached for 1 hour.
+// @Description Returns a single catalog of movies/shows. Use `sort` (with optional `genre`) for the popular/top-rated catalogs, `year` for one release year, or `provider` for a streaming service. `provider` takes precedence over `year`, which takes precedence over `sort`. Results are cached for 1 hour.
 // @Tags        discover
 // @Produce     json
-// @Param       type query string true  "Media type"  Enums(movie, series)
-// @Param       sort query string true  "Sort order"  Enums(popular, top_rated)
+// @Param       type     query string true  "Media type" Enums(movie, series)
+// @Param       sort     query string false "Sort order (default popular)" Enums(popular, top_rated)
+// @Param       genre    query string false "Genre filter, e.g. action, sci-fi (series also: reality-tv, talk-show, game-show)"
+// @Param       year     query string false "Release year, e.g. 2025 (overrides sort)"
+// @Param       provider query string false "Streaming provider (overrides sort and year)" Enums(netflix, hbomax, disney, prime, appletv)
 // @Success     200 {object} models.DiscoverResponse
 // @Failure     400 {object} map[string]string
 // @Failure     502 {object} map[string]string
 // @Router      /discover [get]
 func (h *DiscoverHandler) Discover(w http.ResponseWriter, r *http.Request) {
-	mediaType := r.URL.Query().Get("type")
-	sort      := r.URL.Query().Get("sort")
+	q := r.URL.Query()
+	mediaType := q.Get("type")
+	sort := q.Get("sort")
+	genre := strings.ToLower(strings.TrimSpace(q.Get("genre")))
+	year := strings.TrimSpace(q.Get("year"))
+	provider := strings.ToLower(strings.TrimSpace(q.Get("provider")))
 
 	if mediaType != "movie" && mediaType != "series" {
 		jsonError(w, `type must be "movie" or "series"`, http.StatusBadRequest)
-		return
-	}
-	if sort != "popular" && sort != "top_rated" {
-		jsonError(w, `sort must be "popular" or "top_rated"`, http.StatusBadRequest)
 		return
 	}
 
@@ -47,14 +59,35 @@ func (h *DiscoverHandler) Discover(w http.ResponseWriter, r *http.Request) {
 	)
 
 	switch {
-	case mediaType == "movie" && sort == "popular":
-		items, err = h.Meta.PopularMovies(r.Context())
-	case mediaType == "movie" && sort == "top_rated":
-		items, err = h.Meta.TopRatedMovies(r.Context())
-	case mediaType == "series" && sort == "popular":
-		items, err = h.Meta.PopularShows(r.Context())
-	case mediaType == "series" && sort == "top_rated":
-		items, err = h.Meta.TopRatedShows(r.Context())
+	case provider != "":
+		code, ok := providerCode(provider)
+		if !ok {
+			jsonError(w, "unknown provider", http.StatusBadRequest)
+			return
+		}
+		items, err = h.Meta.ProviderCatalog(r.Context(), mediaType, code)
+
+	case year != "":
+		if !validYear(year) {
+			jsonError(w, "year must be a 4-digit year", http.StatusBadRequest)
+			return
+		}
+		items, err = h.Meta.CatalogByYear(r.Context(), mediaType, year)
+
+	default:
+		if sort == "" {
+			sort = "popular"
+		}
+		catalog, ok := catalogSort[sort]
+		if !ok {
+			jsonError(w, `sort must be "popular" or "top_rated"`, http.StatusBadRequest)
+			return
+		}
+		if genre != "" && !validGenre(mediaType, genre) {
+			jsonError(w, "unknown genre", http.StatusBadRequest)
+			return
+		}
+		items, err = h.Meta.Catalog(r.Context(), mediaType, catalog, genre)
 	}
 
 	if err != nil {
@@ -139,6 +172,7 @@ func (h *DiscoverHandler) MovieDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.trackView(r, id, "movie", detail.Name)
 	jsonOK(w, detail)
 }
 
@@ -165,6 +199,7 @@ func (h *DiscoverHandler) SeriesDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.trackView(r, id, "tv", detail.Name)
 	jsonOK(w, detail)
 }
 
@@ -199,6 +234,7 @@ func (h *DiscoverHandler) Search(w http.ResponseWriter, r *http.Request) {
 			jsonError(w, "search failed", http.StatusBadGateway)
 			return
 		}
+		h.trackSearch(r, query, "movie", len(items))
 		jsonOK(w, models.SearchResponse{Items: items, Query: query, Type: "movie"})
 
 	case "series":
@@ -207,6 +243,7 @@ func (h *DiscoverHandler) Search(w http.ResponseWriter, r *http.Request) {
 			jsonError(w, "search failed", http.StatusBadGateway)
 			return
 		}
+		h.trackSearch(r, query, "series", len(items))
 		jsonOK(w, models.SearchResponse{Items: items, Query: query, Type: "series"})
 
 	default:
@@ -241,6 +278,46 @@ func (h *DiscoverHandler) Search(w http.ResponseWriter, r *http.Request) {
 		}
 
 		merged := meta.MergeAndWeight(movies, series)
+		h.trackSearch(r, query, "", len(merged))
 		jsonOK(w, models.SearchResponse{Items: merged, Query: query})
 	}
+}
+
+// trackSearch records a search event when the request is from a logged-in user.
+func (h *DiscoverHandler) trackSearch(r *http.Request, query, mediaType string, results int) {
+	if h.Tracker == nil {
+		return
+	}
+	claims := middleware.ClaimsFromCtx(r)
+	if claims == nil {
+		return
+	}
+	md := map[string]any{"query": query, "results": results}
+	if mediaType != "" {
+		md["type"] = mediaType
+	}
+	h.Tracker.Record(r.Context(), models.UserEvent{
+		UserID:    claims.UserID,
+		EventType: models.EventSearch,
+		Metadata:  md,
+	})
+}
+
+// trackView records a detail-page view for a logged-in user.
+func (h *DiscoverHandler) trackView(r *http.Request, id, mediaType, title string) {
+	if h.Tracker == nil {
+		return
+	}
+	claims := middleware.ClaimsFromCtx(r)
+	if claims == nil {
+		return
+	}
+	h.Tracker.Record(r.Context(), models.UserEvent{
+		UserID:    claims.UserID,
+		EventType: models.EventView,
+		ItemID:    id,
+		MediaType: mediaType,
+		ImdbID:    id,
+		Title:     title,
+	})
 }
