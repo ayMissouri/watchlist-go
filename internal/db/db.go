@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/ayMissouri/watchlist-go.git/internal/models"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -77,6 +79,11 @@ func (d *DB) GetWatchlist(ctx context.Context, userID string, q models.Watchlist
 		where += fmt.Sprintf(" AND media_type = $%d", len(args))
 	}
 
+	if q.Status != "" {
+		args = append(args, q.Status)
+		where += fmt.Sprintf(" AND status = $%d", len(args))
+	}
+
 	// gets total count of items.
 	var total int
 	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM watchlist_items %s`, where)
@@ -88,9 +95,10 @@ func (d *DB) GetWatchlist(ctx context.Context, userID string, q models.Watchlist
 	args = append(args, q.PerPage, offset)
 
 	dataQuery := fmt.Sprintf(`
-		SELECT id, media_type, tmdb_id, title, poster_path, backdrop_path,
+		SELECT id, media_type, tmdb_id, imdb_id, title, poster_path, backdrop_path, status,
 		       progress_watched, progress_duration,
 		       last_season_watched, last_episode_watched,
+		       episodes_watched, episodes_total,
 		       show_progress, last_updated
 		FROM watchlist_items
 		%s
@@ -126,9 +134,10 @@ func (d *DB) GetWatchlist(ctx context.Context, userID string, q models.Watchlist
 
 func (d *DB) GetItem(ctx context.Context, userID, itemID string) (*models.WatchlistItem, error) {
 	row := d.Pool.QueryRow(ctx, `
-		SELECT id, media_type, tmdb_id, title, poster_path, backdrop_path,
+		SELECT id, media_type, tmdb_id, imdb_id, title, poster_path, backdrop_path, status,
 		       progress_watched, progress_duration,
 		       last_season_watched, last_episode_watched,
+		       episodes_watched, episodes_total,
 		       show_progress, last_updated
 		FROM watchlist_items
 		WHERE user_id = $1 AND id = $2
@@ -137,40 +146,49 @@ func (d *DB) GetItem(ctx context.Context, userID, itemID string) (*models.Watchl
 	return scanItem(row)
 }
 
-func (d *DB) UpsertItem(ctx context.Context, userID string, item *models.WatchlistItem) error {
+// UpsertItem inserts or updates a watchlist item.
+func (d *DB) UpsertItem(ctx context.Context, userID string, item *models.WatchlistItem) (bool, error) {
 	showProgressJSON, err := json.Marshal(item.ShowProgress)
 	if err != nil {
-		return err
+		return false, err
 	}
 
-	_, err = d.Pool.Exec(ctx, `
+	var inserted bool
+	err = d.Pool.QueryRow(ctx, `
 		INSERT INTO watchlist_items (
-			id, user_id, media_type, tmdb_id, title,
-			poster_path, backdrop_path,
+			id, user_id, media_type, tmdb_id, imdb_id, title,
+			poster_path, backdrop_path, status,
 			progress_watched, progress_duration,
 			last_season_watched, last_episode_watched,
+			episodes_watched, episodes_total,
 			show_progress, last_updated
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
 		ON CONFLICT (id, user_id) DO UPDATE SET
 			media_type           = EXCLUDED.media_type,
 			tmdb_id              = EXCLUDED.tmdb_id,
+			imdb_id              = EXCLUDED.imdb_id,
 			title                = EXCLUDED.title,
 			poster_path          = EXCLUDED.poster_path,
 			backdrop_path        = EXCLUDED.backdrop_path,
+			status               = EXCLUDED.status,
 			progress_watched     = EXCLUDED.progress_watched,
 			progress_duration    = EXCLUDED.progress_duration,
 			last_season_watched  = EXCLUDED.last_season_watched,
 			last_episode_watched = EXCLUDED.last_episode_watched,
+			episodes_watched     = EXCLUDED.episodes_watched,
+			episodes_total       = EXCLUDED.episodes_total,
 			show_progress        = EXCLUDED.show_progress,
 			last_updated         = EXCLUDED.last_updated
+		RETURNING (xmax = 0)
 	`,
-		item.ID, userID, item.Type, item.TmdbID, item.Title,
-		item.PosterPath, item.BackdropPath,
+		item.ID, userID, item.Type, item.TmdbID, item.ImdbID, item.Title,
+		item.PosterPath, item.BackdropPath, item.Status,
 		item.Progress.Watched, item.Progress.Duration,
 		item.LastSeasonWatched, item.LastEpisodeWatched,
+		item.EpisodesWatched, item.EpisodesTotal,
 		showProgressJSON, item.LastUpdated,
-	)
-	return err
+	).Scan(&inserted)
+	return inserted, err
 }
 
 func (d *DB) DeleteItem(ctx context.Context, userID, itemID string) error {
@@ -197,15 +215,21 @@ func scanItem(row rowScanner) (*models.WatchlistItem, error) {
 	item := &models.WatchlistItem{}
 	var showProgressJSON []byte
 
+	var imdbID *string
 	err := row.Scan(
-		&item.ID, &item.Type, &item.TmdbID, &item.Title,
-		&item.PosterPath, &item.BackdropPath,
+		&item.ID, &item.Type, &item.TmdbID, &imdbID, &item.Title,
+		&item.PosterPath, &item.BackdropPath, &item.Status,
 		&item.Progress.Watched, &item.Progress.Duration,
 		&item.LastSeasonWatched, &item.LastEpisodeWatched,
+		&item.EpisodesWatched, &item.EpisodesTotal,
 		&showProgressJSON, &item.LastUpdated,
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	if imdbID != nil {
+		item.ImdbID = *imdbID
 	}
 
 	if len(showProgressJSON) > 0 && string(showProgressJSON) != "null" {
@@ -226,4 +250,252 @@ func (d *DB) BulkDeleteItems(ctx context.Context, userID string, ids []string) (
 		return 0, err
 	}
 	return tag.RowsAffected(), nil
+}
+
+const notificationsLimit = 50
+
+func (d *DB) CreateNotification(ctx context.Context, userID string, n *models.Notification) error {
+	if n.Type == "" {
+		n.Type = "general"
+	}
+	if n.CreatedAt == 0 {
+		n.CreatedAt = time.Now().UnixMilli()
+	}
+	_, err := d.Pool.Exec(ctx, `
+		INSERT INTO notifications (user_id, type, title, body, poster_path, link, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`, userID, n.Type, n.Title, n.Body, n.PosterPath, n.Link, n.CreatedAt)
+	return err
+}
+
+func (d *DB) GetNotifications(ctx context.Context, userID string) ([]models.Notification, error) {
+	rows, err := d.Pool.Query(ctx, `
+		SELECT id, type, title, body, poster_path, link, read, created_at
+		FROM notifications
+		WHERE user_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2
+	`, userID, notificationsLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := []models.Notification{}
+	for rows.Next() {
+		var n models.Notification
+		var poster, link *string
+		if err := rows.Scan(&n.ID, &n.Type, &n.Title, &n.Body, &poster, &link, &n.Read, &n.CreatedAt); err != nil {
+			return nil, err
+		}
+		if poster != nil {
+			n.PosterPath = *poster
+		}
+		if link != nil {
+			n.Link = *link
+		}
+		items = append(items, n)
+	}
+	return items, rows.Err()
+}
+
+func (d *DB) CountUnreadNotifications(ctx context.Context, userID string) (int, error) {
+	var count int
+	err := d.Pool.QueryRow(ctx,
+		`SELECT COUNT(*) FROM notifications WHERE user_id = $1 AND read = FALSE`,
+		userID,
+	).Scan(&count)
+	return count, err
+}
+
+func (d *DB) MarkNotificationRead(ctx context.Context, userID string, id int64) error {
+	tag, err := d.Pool.Exec(ctx,
+		`UPDATE notifications SET read = TRUE WHERE user_id = $1 AND id = $2`,
+		userID, id,
+	)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("not found")
+	}
+	return nil
+}
+
+func (d *DB) MarkAllNotificationsRead(ctx context.Context, userID string) error {
+	_, err := d.Pool.Exec(ctx,
+		`UPDATE notifications SET read = TRUE WHERE user_id = $1 AND read = FALSE`,
+		userID,
+	)
+	return err
+}
+
+func (d *DB) ListUserIDs(ctx context.Context) ([]string, error) {
+	rows, err := d.Pool.Query(ctx, `SELECT id FROM users`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	ids := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+func (d *DB) GetWatchlistForSync(ctx context.Context, userID string) ([]models.WatchlistItem, error) {
+	rows, err := d.Pool.Query(ctx, `
+		SELECT id, media_type, imdb_id, title, poster_path, status
+		FROM watchlist_items
+		WHERE user_id = $1 AND status <> 'dropped'
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := []models.WatchlistItem{}
+	for rows.Next() {
+		var item models.WatchlistItem
+		var imdbID, poster *string
+		if err := rows.Scan(&item.ID, &item.Type, &imdbID, &item.Title, &poster, &item.Status); err != nil {
+			return nil, err
+		}
+		if imdbID != nil {
+			item.ImdbID = *imdbID
+		}
+		if poster != nil {
+			item.PosterPath = *poster
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func (d *DB) UpsertCalendarEntry(ctx context.Context, e *models.CalendarEntry, release time.Time) error {
+	_, err := d.Pool.Exec(ctx, `
+		INSERT INTO calendar_entries (
+			user_id, item_id, media_type, imdb_id, title, poster_path,
+			season, episode, episode_title, release_date
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+		ON CONFLICT (user_id, item_id, season, episode) DO UPDATE SET
+			media_type    = EXCLUDED.media_type,
+			imdb_id       = EXCLUDED.imdb_id,
+			title         = EXCLUDED.title,
+			poster_path   = EXCLUDED.poster_path,
+			episode_title = EXCLUDED.episode_title,
+			release_date  = EXCLUDED.release_date
+	`,
+		e.UserID, e.ItemID, e.MediaType, nullString(e.ImdbID), e.Title, nullString(e.PosterPath),
+		e.Season, e.Episode, nullString(e.EpisodeTitle), release,
+	)
+	return err
+}
+
+func (d *DB) DeleteStaleCalendarEntries(ctx context.Context, userID string) error {
+	_, err := d.Pool.Exec(ctx, `
+		DELETE FROM calendar_entries c
+		WHERE c.user_id = $1
+		  AND NOT EXISTS (
+			SELECT 1 FROM watchlist_items w
+			WHERE w.user_id = c.user_id
+			  AND w.id = c.item_id
+			  AND w.status <> 'dropped'
+		  )
+	`, userID)
+	return err
+}
+
+func (d *DB) GetCalendar(ctx context.Context, userID string) ([]models.CalendarEntry, error) {
+	rows, err := d.Pool.Query(ctx, `
+		SELECT id, item_id, media_type, imdb_id, title, poster_path,
+		       season, episode, episode_title,
+		       EXTRACT(EPOCH FROM release_date)::BIGINT * 1000 AS release_ms,
+		       (release_date <= NOW()) AS released
+		FROM calendar_entries
+		WHERE user_id = $1
+		ORDER BY release_date ASC
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanCalendarRows(rows)
+}
+
+func (d *DB) GetDueCalendarEntries(ctx context.Context) ([]models.CalendarEntry, error) {
+	rows, err := d.Pool.Query(ctx, `
+		SELECT id, user_id, item_id, media_type, imdb_id, title, poster_path,
+		       season, episode, episode_title,
+		       EXTRACT(EPOCH FROM release_date)::BIGINT * 1000 AS release_ms
+		FROM calendar_entries
+		WHERE release_date <= NOW()
+		ORDER BY release_date ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	entries := []models.CalendarEntry{}
+	for rows.Next() {
+		var e models.CalendarEntry
+		var imdbID, poster, episodeTitle *string
+		if err := rows.Scan(
+			&e.ID, &e.UserID, &e.ItemID, &e.MediaType, &imdbID, &e.Title, &poster,
+			&e.Season, &e.Episode, &episodeTitle, &e.ReleaseDate,
+		); err != nil {
+			return nil, err
+		}
+		e.ImdbID = derefString(imdbID)
+		e.PosterPath = derefString(poster)
+		e.EpisodeTitle = derefString(episodeTitle)
+		e.Released = true
+		entries = append(entries, e)
+	}
+	return entries, rows.Err()
+}
+
+func (d *DB) DeleteCalendarEntry(ctx context.Context, id int64) error {
+	_, err := d.Pool.Exec(ctx, `DELETE FROM calendar_entries WHERE id = $1`, id)
+	return err
+}
+
+func scanCalendarRows(rows pgx.Rows) ([]models.CalendarEntry, error) {
+	entries := []models.CalendarEntry{}
+	for rows.Next() {
+		var e models.CalendarEntry
+		var imdbID, poster, episodeTitle *string
+		if err := rows.Scan(
+			&e.ID, &e.ItemID, &e.MediaType, &imdbID, &e.Title, &poster,
+			&e.Season, &e.Episode, &episodeTitle, &e.ReleaseDate, &e.Released,
+		); err != nil {
+			return nil, err
+		}
+		e.ImdbID = derefString(imdbID)
+		e.PosterPath = derefString(poster)
+		e.EpisodeTitle = derefString(episodeTitle)
+		entries = append(entries, e)
+	}
+	return entries, rows.Err()
+}
+
+func nullString(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+func derefString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }

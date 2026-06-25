@@ -41,6 +41,10 @@ func parseWatchlistQuery(r *http.Request) models.WatchlistQuery {
 		q.Type = t
 	}
 
+	if s := models.WatchlistStatus(r.URL.Query().Get("status")); s.Valid() {
+		q.Status = string(s)
+	}
+
 	if s := r.URL.Query().Get("sort"); s == "title" || s == "last_updated" {
 		q.Sort = s
 	}

@@ -23,27 +23,56 @@ type EpisodeProgress struct {
 // ShowProgress is keyed by "s1e1", "s1e2" etc.
 type ShowProgress map[string]EpisodeProgress
 
+type WatchlistStatus string
+
+const (
+	StatusWatching    WatchlistStatus = "watching"
+	StatusWatched     WatchlistStatus = "watched"
+	StatusPlanToWatch WatchlistStatus = "plan_to_watch"
+	StatusPaused      WatchlistStatus = "paused"
+	StatusDropped     WatchlistStatus = "dropped"
+)
+
+func (s WatchlistStatus) Valid() bool {
+	switch s {
+	case StatusWatching, StatusWatched, StatusPlanToWatch, StatusPaused, StatusDropped:
+		return true
+	}
+	return false
+}
+
 type WatchlistItem struct {
-	ID           string   `json:"id"`
-	TmdbID       int      `json:"tmdb_id,omitempty"`
-	Type         string   `json:"type"`
-	Title        string   `json:"title"`
-	PosterPath   string   `json:"poster_path,omitempty"`
-	BackdropPath string   `json:"backdrop_path,omitempty"`
-	Progress     Progress `json:"progress"`
+	ID           string          `json:"id"`
+	TmdbID       int             `json:"tmdb_id,omitempty"`
+	ImdbID       string          `json:"imdb_id,omitempty"`
+	Type         string          `json:"type"`
+	Title        string          `json:"title"`
+	PosterPath   string          `json:"poster_path,omitempty"`
+	BackdropPath string          `json:"backdrop_path,omitempty"`
+	Status       WatchlistStatus `json:"status"`
+	Progress Progress `json:"progress"`
 	// A *int can be nil.
 	LastSeasonWatched  *int         `json:"last_season_watched,omitempty"`
 	LastEpisodeWatched *int         `json:"last_episode_watched,omitempty"`
-	ShowProgress       ShowProgress `json:"show_progress,omitempty"`
-	LastUpdated        int64        `json:"last_updated"`
+	EpisodesWatched int          `json:"episodes_watched,omitempty"`
+	EpisodesTotal   int          `json:"episodes_total,omitempty"`
+	ShowProgress    ShowProgress `json:"show_progress,omitempty"`
+	LastUpdated     int64        `json:"last_updated"`
 }
 
 type UpdateProgressRequest struct {
-	Progress           Progress     `json:"progress"`
-	ShowProgress       ShowProgress `json:"show_progress,omitempty"`
-	LastSeasonWatched  *int         `json:"last_season_watched,omitempty"`
-	LastEpisodeWatched *int         `json:"last_episode_watched,omitempty"`
-	LastUpdated        int64        `json:"last_updated"`
+	Progress           *Progress       `json:"progress,omitempty"`
+	ShowProgress       ShowProgress    `json:"show_progress,omitempty"`
+	LastSeasonWatched  *int            `json:"last_season_watched,omitempty"`
+	LastEpisodeWatched *int            `json:"last_episode_watched,omitempty"`
+	EpisodesWatched    *int            `json:"episodes_watched,omitempty"`
+	EpisodesTotal      *int            `json:"episodes_total,omitempty"`
+	Status             WatchlistStatus `json:"status,omitempty"`
+	LastUpdated        int64           `json:"last_updated"`
+}
+
+type UpdateStatusRequest struct {
+	Status WatchlistStatus `json:"status"`
 }
 
 type PaginationMeta struct {
@@ -62,6 +91,7 @@ type WatchlistQuery struct {
 	Page    int
 	PerPage int
 	Type    string // "tv", "movie", or "" for all
+	Status  string // "watching", "watched", "plan_to_watch", "paused", "dropped", or "" for all
 	Sort    string // "last_updated", "title"
 	Order   string // "asc", "desc"
 }
@@ -71,6 +101,7 @@ type DiscoverItem struct {
 	Type       string `json:"type"`
 	Title      string `json:"title"`
 	Poster     string `json:"poster,omitempty"`
+	Background string `json:"background,omitempty"`
 	ImdbRating string `json:"imdb_rating,omitempty"`
 	Year       string `json:"year,omitempty"`
 }
@@ -173,4 +204,42 @@ type SearchResponse struct {
 
 type BulkDeleteRequest struct {
 	IDs []string `json:"ids"`
+}
+
+type Notification struct {
+	ID         int64  `json:"id"`
+	Type       string `json:"type"`
+	Title      string `json:"title"`
+	Body       string `json:"body,omitempty"`
+	PosterPath string `json:"poster_path,omitempty"`
+	Link       string `json:"link,omitempty"`
+	Read       bool   `json:"read"`
+	CreatedAt  int64  `json:"created_at"`
+}
+
+type NotificationsResponse struct {
+	Items  []Notification `json:"items"`
+	Unread int            `json:"unread"`
+}
+
+type CalendarEntry struct {
+	ID         int64  `json:"id"`
+	ItemID     string `json:"item_id"`
+	MediaType  string `json:"media_type"` // "tv" or "movie"
+	ImdbID     string `json:"imdb_id,omitempty"`
+	Title      string `json:"title"`
+	PosterPath string `json:"poster_path,omitempty"`
+	// Season/Episode are zero for movies.
+	Season       int    `json:"season,omitempty"`
+	Episode      int    `json:"episode,omitempty"`
+	EpisodeTitle string `json:"episode_title,omitempty"`
+	ReleaseDate int64 `json:"release_date"`
+	// Released is true once the release date has passed.
+	Released bool   `json:"released"`
+	Link     string `json:"link,omitempty"`
+	UserID string `json:"-"`
+}
+
+type CalendarResponse struct {
+	Items []CalendarEntry `json:"items"`
 }
