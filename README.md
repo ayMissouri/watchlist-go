@@ -1,16 +1,27 @@
 # watchlist-go
 
-A project made to help learn new skills and improve existing ones.
+The backend API for a movie & TV watchlist app. Sign in with Discord, track what
+you're watching, browse and search releases, and get notified when something new
+drops.
+
+## Features
+
+- Discord OAuth2 login with JWT sessions
+- Personal watchlist with watch status, playback progress, and episode counts
+- Discover and search
+- Notifications for new releases
+- Upcoming-releases calendar
+- Profile stats and a yearly "wrapped" summary
 
 ## Stack
 
-- **[chi](https://github.com/go-chi/chi)** — HTTP router
-- **[pgx](https://github.com/jackc/pgx)** — PostgreSQL driver (pgxpool)
-- **[godotenv](https://github.com/joho/godotenv)** — `.env` file loading
-- **[golang-jwt/jwt](https://github.com/golang-jwt/jwt)** — JWT creation and validation
-- **[discord-oauth2](https://github.com/ravener/discord-oauth2)** — Discord OAuth2 constants
-- **[golang.org/x/oauth2](https://pkg.go.dev/golang.org/x/oauth2)** — OAuth2 client
-- **[swaggo/http-swagger](https://github.com/swaggo/http-swagger)** — Swagger UI (dev only)
+- **[chi](https://github.com/go-chi/chi)**
+- **[pgx](https://github.com/jackc/pgx)**
+- **[godotenv](https://github.com/joho/godotenv)**
+- **[golang-jwt/jwt](https://github.com/golang-jwt/jwt)**
+- **[discord-oauth2](https://github.com/ravener/discord-oauth2)**
+- **[golang.org/x/oauth2](https://pkg.go.dev/golang.org/x/oauth2)**
+- **[swaggo/http-swagger](https://github.com/swaggo/http-swagger)**
 
 ## Getting Started
 
@@ -27,11 +38,14 @@ Copy `.env.example` to `.env` and fill in the values:
 |----------|-------------|
 | `DATABASE_URL` | PostgreSQL connection string |
 | `PORT` | Port to run the server on (default `8080`) |
+| `ENV` | Set to `production` to disable Swagger and use secure cookies |
+| `JWT_SECRET` | Any random string, at least 32 characters |
 | `DISCORD_CLIENT_ID` | From the Discord developer portal |
 | `DISCORD_CLIENT_SECRET` | From the Discord developer portal |
 | `DISCORD_REDIRECT_URL` | Must match what's set in Discord (`/auth/callback`) |
-| `JWT_SECRET` | Any random string, at least 32 characters |
-| `META_BASE_URL` | Base URL for the meta API |
+| `FRONTEND_URL` | Frontend origin, used for CORS and the post-login redirect (default `http://localhost:3000`) |
+| `DISABLE_CALENDAR_JOB` | Set to `true` to skip the daily calendar sync job |
+| `CALENDAR_SYNC_INTERVAL` | Optional override for the calendar sync interval |
 
 ### Run the database
 
@@ -53,7 +67,8 @@ Swagger UI is available at `localhost:8080/swagger/index.html` in non-production
 
 ## Install git hooks
 
-A pre-commit hook is included that strips hardcoded bearer tokens from `bruno/watchlist.yml` before committing, so the Bruno collection can be safely exported.
+A pre-commit hook is included that strips hardcoded bearer tokens from
+`bruno/watchlist.yml` before committing, so the Bruno collection can be safely exported.
 
 ```bash
 ./scripts/install-git-hooks.sh

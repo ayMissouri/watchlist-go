@@ -17,11 +17,6 @@ import (
 const cacheTTL = time.Hour
 const detailCacheTTL = 24 * time.Hour
 
-// defaultStreamingBaseURL is the public Stremio catalog addon that serves the
-// per-service catalogs (Netflix, HBO Max, Disney+, Prime Video, Apple TV+).
-// Override with STREAMING_BASE_URL.
-const defaultStreamingBaseURL = "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club"
-
 var ErrNotFound = errors.New("not found")
 
 // this holds cached data and its expiration time.
@@ -46,11 +41,7 @@ type Client struct {
 
 func NewClient() *Client {
 	baseURL := os.Getenv("META_BASE_URL")
-
 	streamingURL := os.Getenv("STREAMING_BASE_URL")
-	if streamingURL == "" {
-		streamingURL = defaultStreamingBaseURL
-	}
 
 	return &Client{
 		httpClient:   &http.Client{Timeout: 10 * time.Second},

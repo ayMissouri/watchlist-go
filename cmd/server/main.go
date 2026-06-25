@@ -40,7 +40,7 @@ func main() {
 	_ = godotenv.Load()
 	auth.InitDiscord()
 
-	// context.Background() is the root context — used at startup
+	// context.Background() is the root context thats used at startup
 	// where there's no incoming request to derive a context from
 	ctx := context.Background()
 
