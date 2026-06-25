@@ -129,13 +129,13 @@ func longestStreakDays(days []time.Time) int {
 	longest, current := 1, 1
 	for i := 1; i < len(days); i++ {
 		gap := days[i].Sub(days[i-1])
-		switch {
-		case gap == 24*time.Hour:
+		switch gap {
+		case 24 * time.Hour:
 			current++
 			if current > longest {
 				longest = current
 			}
-		case gap == 0:
+		case 0:
 		default:
 			current = 1
 		}
