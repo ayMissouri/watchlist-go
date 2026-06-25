@@ -13,14 +13,16 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 
 	_ "github.com/ayMissouri/watchlist-go.git/docs"
+	"github.com/ayMissouri/watchlist-go.git/internal/calendar"
 	"github.com/ayMissouri/watchlist-go.git/internal/db"
 	"github.com/ayMissouri/watchlist-go.git/internal/handlers"
 	"github.com/ayMissouri/watchlist-go.git/internal/meta"
 	"github.com/ayMissouri/watchlist-go.git/internal/middleware"
+	"github.com/ayMissouri/watchlist-go.git/internal/tracking"
 )
 
 // http.Handler is an interface, so this can return anything that represents a HTTP handler.
-func NewRouter(database *db.DB) http.Handler {
+func NewRouter(database *db.DB, metaClient *meta.Client) http.Handler {
 	// chi is a lightweight, idiomatic and composable router for building Go HTTP services.
 	// It works with net/http and has a simple API for defining routes and middleware.
 	r := chi.NewRouter()
@@ -32,6 +34,7 @@ func NewRouter(database *db.DB) http.Handler {
 	r.Use(chimiddleware.Logger)
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.Timeout(30 * time.Second))
+	r.Use(middleware.CORS)
 
 	// makes it so swagger UI is only available in non-production environments.
 	if os.Getenv("ENV") != "production" {
@@ -42,10 +45,20 @@ func NewRouter(database *db.DB) http.Handler {
 
 	r.Get("/health", handlers.Health(database))
 
-	authHandler := &handlers.AuthHandler{DB: database}
-	wlHandler := &handlers.WatchlistHandler{DB: database}
+	tracker := tracking.NewService(database, metaClient)
+
+	authHandler := &handlers.AuthHandler{DB: database, Tracker: tracker}
+	wlHandler := &handlers.WatchlistHandler{DB: database, Tracker: tracker}
+	notifHandler := &handlers.NotificationsHandler{DB: database}
 	discoverHandler := &handlers.DiscoverHandler{
-		Meta: meta.NewClient(),
+		Meta:    metaClient,
+		Tracker: tracker,
+	}
+	eventsHandler := &handlers.EventsHandler{DB: database, Tracker: tracker}
+	statsHandler := &handlers.StatsHandler{Tracker: tracker}
+	calendarHandler := &handlers.CalendarHandler{
+		DB:       database,
+		Calendar: calendar.NewService(database, metaClient),
 	}
 
 	// Public auth routes
@@ -65,21 +78,56 @@ func NewRouter(database *db.DB) http.Handler {
 		r.Put("/{id}", wlHandler.Upsert)
 		r.Get("/{id}", wlHandler.GetOne)
 		r.Patch("/{id}/progress", wlHandler.UpdateProgress)
+		r.Patch("/{id}/status", wlHandler.UpdateStatus)
 		r.Delete("/{id}", wlHandler.Delete)
 		r.Delete("/", wlHandler.BulkDelete)
 	})
 
+	r.Route("/notifications", func(r chi.Router) {
+		r.Use(middleware.RequireAuth)
+
+		r.Get("/", notifHandler.GetAll)
+		r.Patch("/read-all", notifHandler.MarkAllRead)
+		r.Patch("/{id}/read", notifHandler.MarkRead)
+	})
+
+	r.Route("/calendar", func(r chi.Router) {
+		r.Use(middleware.RequireAuth)
+
+		r.Get("/", calendarHandler.GetAll)
+		r.Post("/refresh", calendarHandler.Refresh)
+	})
+
+	r.Route("/stats", func(r chi.Router) {
+		r.Use(middleware.RequireAuth)
+
+		r.Get("/", statsHandler.Profile)
+		r.Get("/wrapped", statsHandler.Wrapped)
+	})
+
+	r.Route("/events", func(r chi.Router) {
+		r.Use(middleware.RequireAuth)
+
+		r.Get("/", eventsHandler.List)
+		r.Post("/", eventsHandler.Record)
+	})
+
+	// Public browse routes. OptionalAuth attributes activity to a user when a token is present.
 	r.Route("/discover", func(r chi.Router) {
+		r.Use(middleware.OptionalAuth)
+
 		r.Get("/", discoverHandler.Discover)
 		r.Get("/all", discoverHandler.DiscoverAll)
 	})
 
 	r.Route("/meta", func(r chi.Router) {
+		r.Use(middleware.OptionalAuth)
+
 		r.Get("/movie/{id}", discoverHandler.MovieDetail)
 		r.Get("/series/{id}", discoverHandler.SeriesDetail)
 	})
 
-	r.Get("/search", discoverHandler.Search)
+	r.With(middleware.OptionalAuth).Get("/search", discoverHandler.Search)
 
 	return r
 }

@@ -6,10 +6,11 @@ import (
 	"testing"
 
 	"github.com/ayMissouri/watchlist-go.git/internal/db"
+	"github.com/ayMissouri/watchlist-go.git/internal/meta"
 )
 
 func TestHealthRoute_NoDB(t *testing.T) {
-	router := NewRouter(&db.DB{})
+	router := NewRouter(&db.DB{}, meta.NewClient())
 
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	rr := httptest.NewRecorder()

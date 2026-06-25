@@ -26,10 +26,12 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
-	
-	"github.com/ayMissouri/watchlist-go.git/internal/db"
-	"github.com/ayMissouri/watchlist-go.git/internal/server"
+
 	"github.com/ayMissouri/watchlist-go.git/internal/auth"
+	"github.com/ayMissouri/watchlist-go.git/internal/calendar"
+	"github.com/ayMissouri/watchlist-go.git/internal/db"
+	"github.com/ayMissouri/watchlist-go.git/internal/meta"
+	"github.com/ayMissouri/watchlist-go.git/internal/server"
 )
 
 // func main is the entry point of the program.
@@ -47,7 +49,14 @@ func main() {
 		log.Fatalf("could not connect to db: %v", err)
 	}
 
-	router := server.NewRouter(database)
+	metaClient := meta.NewClient()
+
+	// Start the daily calendar job in the background unless DISABLE_CALENDAR_JOB is true.
+	if os.Getenv("DISABLE_CALENDAR_JOB") != "true" {
+		go calendar.NewService(database, metaClient).RunDaily(ctx)
+	}
+
+	router := server.NewRouter(database, metaClient)
 
 	port := os.Getenv("PORT")
 	if port == "" {
