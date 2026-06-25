@@ -1,4 +1,5 @@
 .env
-web/.next
-web/node_modules
-web/.env.local
+node_modules
+tmp/
+/server
+/server.exe
