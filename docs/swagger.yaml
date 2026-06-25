@@ -34,9 +34,6 @@ definitions:
       poster_path:
         type: string
       release_date:
-        description: |-
-          ReleaseDate is epoch milliseconds, matching the time unit used elsewhere
-          in the API (watchlist last_updated, notifications created_at).
         type: integer
       released:
         description: Released is true once the release date has passed.
@@ -74,8 +71,6 @@ definitions:
         additionalProperties: {}
         type: object
       occurred_at:
-        description: OccurredAt is optional epoch ms; the server stamps "now" when
-          it's missing.
         type: integer
       release_year:
         type: integer
@@ -474,11 +469,7 @@ definitions:
       last_updated:
         type: integer
       progress:
-        allOf:
-        - $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Progress'
-        description: |-
-          Progress is optional: a show episode toggle omits it so the player's
-          playback position is left untouched. Only overwritten when present.
+        $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Progress'
       show_progress:
         $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.ShowProgress'
       status:
@@ -554,9 +545,6 @@ definitions:
       episodes_total:
         type: integer
       episodes_watched:
-        description: |-
-          Aggregate episode counts for shows, so list/home views can render a
-          progress bar without fetching episode metadata.
         type: integer
       id:
         type: string
@@ -572,12 +560,7 @@ definitions:
       poster_path:
         type: string
       progress:
-        allOf:
-        - $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Progress'
-        description: |-
-          Progress is the video player's per-video playback position (seconds
-          watched / total duration). For shows, episode-watch progress lives in the
-          boundary + EpisodesWatched/EpisodesTotal below, not here.
+        $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Progress'
       show_progress:
         $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.ShowProgress'
       status:
@@ -661,9 +644,6 @@ definitions:
           type: integer
         type: array
       watches_by_month:
-        description: |-
-          Fixed-length histograms: 12 months (Jan..Dec), 24 hours (0..23),
-          7 weekdays (Sun..Sat). All counts are of watch events (UTC).
         items:
           type: integer
         type: array

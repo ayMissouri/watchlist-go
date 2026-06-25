@@ -1296,7 +1296,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "release_date": {
-                    "description": "ReleaseDate is epoch milliseconds, matching the time unit used elsewhere\nin the API (watchlist last_updated, notifications created_at).",
                     "type": "integer"
                 },
                 "released": {
@@ -1352,7 +1351,6 @@ const docTemplate = `{
                     "additionalProperties": {}
                 },
                 "occurred_at": {
-                    "description": "OccurredAt is optional epoch ms; the server stamps \"now\" when it's missing.",
                     "type": "integer"
                 },
                 "release_year": {
@@ -1959,12 +1957,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "progress": {
-                    "description": "Progress is optional: a show episode toggle omits it so the player's\nplayback position is left untouched. Only overwritten when present.",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Progress"
-                        }
-                    ]
+                    "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Progress"
                 },
                 "show_progress": {
                     "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.ShowProgress"
@@ -2078,7 +2071,6 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "episodes_watched": {
-                    "description": "Aggregate episode counts for shows, so list/home views can render a\nprogress bar without fetching episode metadata.",
                     "type": "integer"
                 },
                 "id": {
@@ -2101,12 +2093,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "progress": {
-                    "description": "Progress is the video player's per-video playback position (seconds\nwatched / total duration). For shows, episode-watch progress lives in the\nboundary + EpisodesWatched/EpisodesTotal below, not here.",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Progress"
-                        }
-                    ]
+                    "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Progress"
                 },
                 "show_progress": {
                     "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.ShowProgress"
@@ -2229,7 +2216,6 @@ const docTemplate = `{
                     }
                 },
                 "watches_by_month": {
-                    "description": "Fixed-length histograms: 12 months (Jan..Dec), 24 hours (0..23),\n7 weekdays (Sun..Sat). All counts are of watch events (UTC).",
                     "type": "array",
                     "items": {
                         "type": "integer"
