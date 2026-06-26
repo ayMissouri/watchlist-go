@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/ravener/discord-oauth2"
 	"golang.org/x/oauth2"
@@ -63,4 +64,14 @@ func FetchDiscordUser(ctx context.Context, code string) (*DiscordUser, error) {
 	}
 
 	return &u, nil
+}
+
+func AvatarURL(userID, avatar string) string {
+	if avatar == "" {
+		return ""
+	}
+	if strings.HasPrefix(avatar, "http://") || strings.HasPrefix(avatar, "https://") {
+		return avatar
+	}
+	return fmt.Sprintf("https://cdn.discordapp.com/avatars/%s/%s.webp", userID, avatar)
 }
