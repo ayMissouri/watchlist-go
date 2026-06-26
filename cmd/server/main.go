@@ -32,6 +32,7 @@ import (
 	"github.com/ayMissouri/watchlist-go.git/internal/db"
 	"github.com/ayMissouri/watchlist-go.git/internal/meta"
 	"github.com/ayMissouri/watchlist-go.git/internal/server"
+	"github.com/ayMissouri/watchlist-go.git/migrations"
 )
 
 // func main is the entry point of the program.
@@ -47,6 +48,10 @@ func main() {
 	database, err := db.New(ctx, os.Getenv("DATABASE_URL"))
 	if err != nil {
 		log.Fatalf("could not connect to db: %v", err)
+	}
+
+	if err := database.Migrate(ctx, migrations.FS); err != nil {
+		log.Fatalf("could not run migrations: %v", err)
 	}
 
 	metaClient := meta.NewClient()
