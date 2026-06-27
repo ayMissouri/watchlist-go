@@ -46,10 +46,11 @@ func NewRouter(database *db.DB, metaClient *meta.Client) http.Handler {
 	r.Get("/health", handlers.Health(database))
 
 	tracker := tracking.NewService(database, metaClient)
+	calendarSvc := calendar.NewService(database, metaClient)
 
 	authHandler := &handlers.AuthHandler{DB: database, Tracker: tracker}
-	wlHandler := &handlers.WatchlistHandler{DB: database, Tracker: tracker}
-	notifHandler := &handlers.NotificationsHandler{DB: database}
+	wlHandler := &handlers.WatchlistHandler{DB: database, Tracker: tracker, Calendar: calendarSvc}
+	notifHandler := &handlers.NotificationsHandler{DB: database, Calendar: calendarSvc}
 	discoverHandler := &handlers.DiscoverHandler{
 		Meta:    metaClient,
 		Tracker: tracker,
@@ -58,7 +59,7 @@ func NewRouter(database *db.DB, metaClient *meta.Client) http.Handler {
 	statsHandler := &handlers.StatsHandler{Tracker: tracker}
 	calendarHandler := &handlers.CalendarHandler{
 		DB:       database,
-		Calendar: calendar.NewService(database, metaClient),
+		Calendar: calendarSvc,
 	}
 
 	// Public auth routes

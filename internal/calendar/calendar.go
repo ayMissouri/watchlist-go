@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"os"
 	"strings"
 	"time"
 
@@ -13,12 +12,6 @@ import (
 	"github.com/ayMissouri/watchlist-go.git/internal/meta"
 	"github.com/ayMissouri/watchlist-go.git/internal/models"
 )
-
-// defaultInterval is how often the daily job re-syncs every users calendar.
-const defaultInterval = 24 * time.Hour
-
-// startupDelay is the delay before the first run of the daily job.
-const startupDelay = 30 * time.Second
 
 type Service struct {
 	DB   *db.DB
@@ -115,21 +108,21 @@ func (s *Service) syncMovie(ctx context.Context, userID string, item models.Watc
 	}
 }
 
-func (s *Service) SyncAll(ctx context.Context) error {
-	userIDs, err := s.DB.ListUserIDs(ctx)
-	if err != nil {
-		return fmt.Errorf("list users: %w", err)
+func (s *Service) SyncItem(ctx context.Context, userID string, item models.WatchlistItem) {
+	if item.ImdbID == "" || item.Status == models.StatusDropped {
+		return
 	}
-	for _, userID := range userIDs {
-		if err := s.SyncUser(ctx, userID); err != nil {
-			log.Printf("calendar: sync user %s: %v", userID, err)
-		}
+	now := time.Now()
+	switch item.Type {
+	case "tv":
+		s.syncSeries(ctx, userID, item, now)
+	case "movie":
+		s.syncMovie(ctx, userID, item, now)
 	}
-	return nil
 }
 
-func (s *Service) ProcessReleased(ctx context.Context) error {
-	due, err := s.DB.GetDueCalendarEntries(ctx)
+func (s *Service) ProcessReleasedForUser(ctx context.Context, userID string) error {
+	due, err := s.DB.GetDueCalendarEntriesForUser(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("load due entries: %w", err)
 	}
@@ -151,42 +144,6 @@ func (s *Service) ProcessReleased(ctx context.Context) error {
 		}
 	}
 	return nil
-}
-
-func (s *Service) RunDaily(ctx context.Context) {
-	interval := syncInterval()
-	timer := time.NewTimer(startupDelay)
-	defer timer.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-timer.C:
-			s.runOnce(ctx)
-			timer.Reset(interval)
-		}
-	}
-}
-
-func (s *Service) runOnce(ctx context.Context) {
-	log.Println("calendar: daily sync starting")
-	if err := s.SyncAll(ctx); err != nil {
-		log.Printf("calendar: sync all: %v", err)
-	}
-	if err := s.ProcessReleased(ctx); err != nil {
-		log.Printf("calendar: process released: %v", err)
-	}
-	log.Println("calendar: daily sync complete")
-}
-
-func syncInterval() time.Duration {
-	if v := os.Getenv("CALENDAR_SYNC_INTERVAL"); v != "" {
-		if d, err := time.ParseDuration(v); err == nil && d > 0 {
-			return d
-		}
-	}
-	return defaultInterval
 }
 
 func releaseBody(e models.CalendarEntry) string {

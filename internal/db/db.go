@@ -330,24 +330,6 @@ func (d *DB) MarkAllNotificationsRead(ctx context.Context, userID string) error 
 	return err
 }
 
-func (d *DB) ListUserIDs(ctx context.Context) ([]string, error) {
-	rows, err := d.Pool.Query(ctx, `SELECT id FROM users`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	ids := []string{}
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		ids = append(ids, id)
-	}
-	return ids, rows.Err()
-}
-
 func (d *DB) GetWatchlistForSync(ctx context.Context, userID string) ([]models.WatchlistItem, error) {
 	rows, err := d.Pool.Query(ctx, `
 		SELECT id, media_type, imdb_id, title, poster_path, status
@@ -429,15 +411,15 @@ func (d *DB) GetCalendar(ctx context.Context, userID string) ([]models.CalendarE
 	return scanCalendarRows(rows)
 }
 
-func (d *DB) GetDueCalendarEntries(ctx context.Context) ([]models.CalendarEntry, error) {
+func (d *DB) GetDueCalendarEntriesForUser(ctx context.Context, userID string) ([]models.CalendarEntry, error) {
 	rows, err := d.Pool.Query(ctx, `
 		SELECT id, user_id, item_id, media_type, imdb_id, title, poster_path,
 		       season, episode, episode_title,
 		       EXTRACT(EPOCH FROM release_date)::BIGINT * 1000 AS release_ms
 		FROM calendar_entries
-		WHERE release_date <= NOW()
+		WHERE user_id = $1 AND release_date <= NOW()
 		ORDER BY release_date ASC
-	`)
+	`, userID)
 	if err != nil {
 		return nil, err
 	}

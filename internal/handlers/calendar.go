@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/ayMissouri/watchlist-go.git/internal/calendar"
@@ -25,6 +26,10 @@ type CalendarHandler struct {
 // @Router      /calendar [get]
 func (h *CalendarHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.ClaimsFromCtx(r)
+
+	if err := h.Calendar.ProcessReleasedForUser(r.Context(), claims.UserID); err != nil {
+		log.Printf("calendar: process released for %s: %v", claims.UserID, err)
+	}
 
 	items, err := h.DB.GetCalendar(r.Context(), claims.UserID)
 	if err != nil {

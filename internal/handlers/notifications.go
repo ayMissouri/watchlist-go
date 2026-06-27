@@ -1,18 +1,21 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/ayMissouri/watchlist-go.git/internal/calendar"
 	"github.com/ayMissouri/watchlist-go.git/internal/db"
 	"github.com/ayMissouri/watchlist-go.git/internal/middleware"
 	"github.com/ayMissouri/watchlist-go.git/internal/models"
 )
 
 type NotificationsHandler struct {
-	DB *db.DB
+	DB       *db.DB
+	Calendar *calendar.Service
 }
 
 // GetAll godoc
@@ -26,6 +29,12 @@ type NotificationsHandler struct {
 // @Router      /notifications [get]
 func (h *NotificationsHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.ClaimsFromCtx(r)
+
+	if h.Calendar != nil {
+		if err := h.Calendar.ProcessReleasedForUser(r.Context(), claims.UserID); err != nil {
+			log.Printf("notifications: process released for %s: %v", claims.UserID, err)
+		}
+	}
 
 	items, err := h.DB.GetNotifications(r.Context(), claims.UserID)
 	if err != nil {

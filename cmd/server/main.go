@@ -28,7 +28,6 @@ import (
 	"github.com/joho/godotenv"
 
 	"github.com/ayMissouri/watchlist-go.git/internal/auth"
-	"github.com/ayMissouri/watchlist-go.git/internal/calendar"
 	"github.com/ayMissouri/watchlist-go.git/internal/db"
 	"github.com/ayMissouri/watchlist-go.git/internal/meta"
 	"github.com/ayMissouri/watchlist-go.git/internal/server"
@@ -55,11 +54,6 @@ func main() {
 	}
 
 	metaClient := meta.NewClient()
-
-	// Start the daily calendar job in the background unless DISABLE_CALENDAR_JOB is true.
-	if os.Getenv("DISABLE_CALENDAR_JOB") != "true" {
-		go calendar.NewService(database, metaClient).RunDaily(ctx)
-	}
 
 	router := server.NewRouter(database, metaClient)
 

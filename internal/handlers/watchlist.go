@@ -1,22 +1,28 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/ayMissouri/watchlist-go.git/internal/calendar"
 	"github.com/ayMissouri/watchlist-go.git/internal/db"
 	"github.com/ayMissouri/watchlist-go.git/internal/middleware"
 	"github.com/ayMissouri/watchlist-go.git/internal/models"
 	"github.com/ayMissouri/watchlist-go.git/internal/tracking"
 )
 
+const calendarSyncTimeout = 15 * time.Second
+
 type WatchlistHandler struct {
-	DB      *db.DB
-	Tracker *tracking.Service
+	DB       *db.DB
+	Tracker  *tracking.Service
+	Calendar *calendar.Service
 }
 
 // GetAll godoc
@@ -144,6 +150,8 @@ func (h *WatchlistHandler) Upsert(w http.ResponseWriter, r *http.Request) {
 			Link:       detailLink(item.Type, item.ImdbID),
 		})
 
+		h.syncCalendar(claims.UserID, item)
+
 		h.track(r, models.UserEvent{
 			EventType: models.EventAdd,
 			ItemID:    item.ID,
@@ -155,6 +163,28 @@ func (h *WatchlistHandler) Upsert(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *WatchlistHandler) syncCalendar(userID string, item models.WatchlistItem) {
+	if h.Calendar == nil || item.ImdbID == "" {
+		return
+	}
+	go func() {
+		defer func() {
+			if rec := recover(); rec != nil {
+				log.Printf("watchlist: calendar sync panic for %s: %v", item.ID, rec)
+			}
+		}()
+		ctx, cancel := context.WithTimeout(context.Background(), calendarSyncTimeout)
+		defer cancel()
+		h.Calendar.SyncItem(ctx, userID, item)
+	}()
+}
+
+func (h *WatchlistHandler) pruneCalendar(ctx context.Context, userID string) {
+	if err := h.DB.DeleteStaleCalendarEntries(ctx, userID); err != nil {
+		log.Printf("watchlist: prune calendar for %s: %v", userID, err)
+	}
 }
 
 func (h *WatchlistHandler) track(r *http.Request, ev models.UserEvent) {
@@ -248,6 +278,10 @@ func (h *WatchlistHandler) UpdateProgress(w http.ResponseWriter, r *http.Request
 	if _, err := h.DB.UpsertItem(r.Context(), claims.UserID, item); err != nil {
 		jsonError(w, "could not update progress", http.StatusInternalServerError)
 		return
+	}
+
+	if item.Status == models.StatusDropped {
+		h.pruneCalendar(r.Context(), claims.UserID)
 	}
 
 	h.trackProgress(r, item, prevStatus, prevEpisodes, req)
@@ -352,6 +386,10 @@ func (h *WatchlistHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	if item.Status == models.StatusDropped {
+		h.pruneCalendar(r.Context(), claims.UserID)
+	}
+
 	if req.Status != prevStatus {
 		h.track(r, models.UserEvent{
 			EventType: models.EventStatusChange,
@@ -402,6 +440,8 @@ func (h *WatchlistHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.pruneCalendar(r.Context(), claims.UserID)
+
 	ev := models.UserEvent{EventType: models.EventRemove, ItemID: itemID}
 	if removed != nil {
 		ev.MediaType = removed.Type
@@ -445,6 +485,8 @@ func (h *WatchlistHandler) BulkDelete(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "could not delete items", http.StatusInternalServerError)
 		return
 	}
+
+	h.pruneCalendar(r.Context(), claims.UserID)
 
 	h.track(r, models.UserEvent{
 		EventType: models.EventBulkRemove,
