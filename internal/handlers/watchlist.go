@@ -142,14 +142,6 @@ func (h *WatchlistHandler) Upsert(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if inserted {
-		_ = h.DB.CreateNotification(r.Context(), claims.UserID, &models.Notification{
-			Type:       "watchlist_add",
-			Title:      item.Title,
-			Body:       "Added to your watchlist",
-			PosterPath: item.PosterPath,
-			Link:       detailLink(item.Type, item.ImdbID),
-		})
-
 		h.syncCalendar(claims.UserID, item)
 
 		h.track(r, models.UserEvent{
