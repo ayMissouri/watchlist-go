@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/ayMissouri/watchlist-go.git/internal/auth"
 	"github.com/ayMissouri/watchlist-go.git/internal/db"
@@ -147,6 +148,51 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"failed to encode response"}`, http.StatusInternalServerError)
 		return
 	}
+}
+
+const maxDisplayNameLen = 50
+
+// UpdateMe godoc
+// @Summary     Update current user
+// @Description Updates the authenticated user's profile (display name). An empty display name clears it, falling back to the username.
+// @Tags        auth
+// @Accept      json
+// @Produce     json
+// @Param       body body models.UpdateUserRequest true "Profile fields to update"
+// @Success     200 {object} models.User
+// @Failure     400 {object} map[string]string
+// @Failure     401 {object} map[string]string
+// @Failure     500 {object} map[string]string
+// @Security    BearerAuth
+// @Router      /auth/me [patch]
+func (h *AuthHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.ClaimsFromCtx(r)
+
+	var req models.UpdateUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	name := strings.TrimSpace(req.DisplayName)
+	if len([]rune(name)) > maxDisplayNameLen {
+		jsonError(w, "display name too long", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.DB.UpdateDisplayName(r.Context(), claims.UserID, name); err != nil {
+		jsonError(w, "could not update profile", http.StatusInternalServerError)
+		return
+	}
+
+	user, err := h.DB.GetUser(r.Context(), claims.UserID)
+	if err != nil {
+		jsonError(w, "user not found", http.StatusNotFound)
+		return
+	}
+	user.Avatar = auth.AvatarURL(user.ID, user.Avatar)
+
+	jsonOK(w, user)
 }
 
 func clientIP(r *http.Request) string {

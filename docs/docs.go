@@ -124,6 +124,70 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates the authenticated user's profile (display name). An empty display name clears it, falling back to the username.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Update current user",
+                "parameters": [
+                    {
+                        "description": "Profile fields to update",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.UpdateUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.User"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/calendar": {
@@ -1704,6 +1768,9 @@ const docTemplate = `{
         "github_com_ayMissouri_watchlist-go_git_internal_models.ProfileStats": {
             "type": "object",
             "properties": {
+                "current_streak_days": {
+                    "type": "integer"
+                },
                 "episodes_watched": {
                     "type": "integer"
                 },
@@ -1714,6 +1781,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "last_event_at": {
+                    "type": "integer"
+                },
+                "longest_streak_days": {
                     "type": "integer"
                 },
                 "movies_watched": {
@@ -1975,6 +2045,14 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.UpdateUserRequest": {
+            "type": "object",
+            "properties": {
+                "display_name": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_ayMissouri_watchlist-go_git_internal_models.User": {
             "type": "object",
             "properties": {
@@ -1983,6 +2061,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "created_at": {
+                    "type": "integer"
+                },
+                "display_name": {
                     "type": "string"
                 },
                 "id": {

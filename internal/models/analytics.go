@@ -80,6 +80,8 @@ type ProfileStats struct {
 	ShowsCompleted   int          `json:"shows_completed"`
 	ItemsAdded       int          `json:"items_added"`
 	WatchTimeMinutes int          `json:"watch_time_minutes"`
+	CurrentStreakDays int         `json:"current_streak_days"`
+	LongestStreakDays int         `json:"longest_streak_days"`
 	TopGenres        []LabelCount `json:"top_genres"`
 	TopTitles        []LabelCount `json:"top_titles"`
 	FirstEventAt     int64        `json:"first_event_at,omitempty"`

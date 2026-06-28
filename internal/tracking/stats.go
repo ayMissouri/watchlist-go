@@ -31,19 +31,49 @@ func (s *Service) Profile(ctx context.Context, userID string) (models.ProfileSta
 	if err != nil {
 		return models.ProfileStats{}, err
 	}
+	days, err := s.DB.GetDistinctWatchDays(ctx, userID, epochStart, end)
+	if err != nil {
+		return models.ProfileStats{}, err
+	}
 
 	return models.ProfileStats{
-		TotalEvents:      totals.Total,
-		MoviesWatched:    totals.Movies,
-		EpisodesWatched:  totals.Episodes,
-		ShowsCompleted:   totals.ShowsCompleted,
-		ItemsAdded:       totals.ItemsAdded,
-		WatchTimeMinutes: totals.WatchMinutes,
-		TopGenres:        genres,
-		TopTitles:        titles,
-		FirstEventAt:     totals.FirstAt,
-		LastEventAt:      totals.LastAt,
+		TotalEvents:       totals.Total,
+		MoviesWatched:     totals.Movies,
+		EpisodesWatched:   totals.Episodes,
+		ShowsCompleted:    totals.ShowsCompleted,
+		ItemsAdded:        totals.ItemsAdded,
+		WatchTimeMinutes:  totals.WatchMinutes,
+		CurrentStreakDays: currentStreakDays(days),
+		LongestStreakDays: longestStreakDays(days),
+		TopGenres:         genres,
+		TopTitles:         titles,
+		FirstEventAt:      totals.FirstAt,
+		LastEventAt:       totals.LastAt,
 	}, nil
+}
+
+func currentStreakDays(days []time.Time) int {
+	if len(days) == 0 {
+		return 0
+	}
+	const day = 24 * time.Hour
+	today := time.Now().UTC().Truncate(day)
+	last := days[len(days)-1].UTC().Truncate(day)
+	if gap := today.Sub(last); gap != 0 && gap != day {
+		return 0
+	}
+	streak := 1
+	for i := len(days) - 1; i > 0; i-- {
+		switch days[i].UTC().Truncate(day).Sub(days[i-1].UTC().Truncate(day)) {
+		case day:
+			streak++
+		case 0:
+			// Same calendar day twice — ignore the duplicate.
+		default:
+			return streak
+		}
+	}
+	return streak
 }
 
 // Wrapped builds the year-in-review for a given calendar year.

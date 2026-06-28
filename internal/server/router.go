@@ -67,8 +67,8 @@ func NewRouter(database *db.DB, metaClient *meta.Client) http.Handler {
 		r.Get("/login", authHandler.Login)
 		r.Get("/callback", authHandler.Callback)
 
-		// Protected route that requires a valid JWT
 		r.With(middleware.RequireAuth).Get("/me", authHandler.Me)
+		r.With(middleware.RequireAuth).Patch("/me", authHandler.UpdateMe)
 	})
 
 	r.Route("/watchlist", func(r chi.Router) {

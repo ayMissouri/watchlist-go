@@ -5,7 +5,8 @@ type User struct {
 	Username string `json:"username"`
 	// omitempty means if field is empty, it will be omitted from the JSON response.
 	Avatar    string `json:"avatar,omitempty"`
-	CreatedAt string `json:"created_at,omitempty"`
+	DisplayName string `json:"display_name,omitempty"`
+	CreatedAt int64 `json:"created_at,omitempty"`
 }
 
 type Progress struct {
@@ -73,6 +74,10 @@ type UpdateProgressRequest struct {
 
 type UpdateStatusRequest struct {
 	Status WatchlistStatus `json:"status"`
+}
+
+type UpdateUserRequest struct {
+	DisplayName string `json:"display_name"`
 }
 
 type PaginationMeta struct {

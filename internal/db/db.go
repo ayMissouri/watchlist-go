@@ -61,12 +61,22 @@ func (d *DB) GetUser(ctx context.Context, id string) (*models.User, error) {
 	u := &models.User{}
 	// QueryRow returns a single row and scan reads the column values into Go variables in order.
 	err := d.Pool.QueryRow(ctx,
-		`SELECT id, username, avatar FROM users WHERE id = $1`, id,
-	).Scan(&u.ID, &u.Username, &u.Avatar)
+		`SELECT id, username, avatar, COALESCE(display_name, ''),
+		        COALESCE((EXTRACT(EPOCH FROM created_at) * 1000)::BIGINT, 0)
+		 FROM users WHERE id = $1`, id,
+	).Scan(&u.ID, &u.Username, &u.Avatar, &u.DisplayName, &u.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
 	return u, nil
+}
+
+func (d *DB) UpdateDisplayName(ctx context.Context, id, name string) error {
+	_, err := d.Pool.Exec(ctx, `
+		UPDATE users SET display_name = NULLIF($2, ''), updated_at = NOW()
+		WHERE id = $1
+	`, id, name)
+	return err
 }
 
 // GetWatchlist returns all items for a user by item ID,

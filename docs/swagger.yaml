@@ -302,6 +302,8 @@ definitions:
     type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.ProfileStats:
     properties:
+      current_streak_days:
+        type: integer
       episodes_watched:
         type: integer
       first_event_at:
@@ -309,6 +311,8 @@ definitions:
       items_added:
         type: integer
       last_event_at:
+        type: integer
+      longest_streak_days:
         type: integer
       movies_watched:
         type: integer
@@ -480,6 +484,11 @@ definitions:
       status:
         $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.WatchlistStatus'
     type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.UpdateUserRequest:
+    properties:
+      display_name:
+        type: string
+    type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.User:
     properties:
       avatar:
@@ -487,6 +496,8 @@ definitions:
           JSON response.
         type: string
       created_at:
+        type: integer
+      display_name:
         type: string
       id:
         type: string
@@ -739,6 +750,48 @@ paths:
       security:
       - BearerAuth: []
       summary: Get current user
+      tags:
+      - auth
+    patch:
+      consumes:
+      - application/json
+      description: Updates the authenticated user's profile (display name). An empty
+        display name clears it, falling back to the username.
+      parameters:
+      - description: Profile fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.User'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update current user
       tags:
       - auth
   /calendar:
