@@ -939,6 +939,14 @@ paths:
         in: query
         name: limit
         type: integer
+      - description: Only include events at or after this Unix ms timestamp
+        in: query
+        name: from
+        type: integer
+      - description: Only include events strictly before this Unix ms timestamp
+        in: query
+        name: to
+        type: integer
       produces:
       - application/json
       responses:

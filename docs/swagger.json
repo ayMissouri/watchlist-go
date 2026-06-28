@@ -398,6 +398,18 @@
                         "description": "Max events to return",
                         "name": "limit",
                         "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Only include events at or after this Unix ms timestamp",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Only include events strictly before this Unix ms timestamp",
+                        "name": "to",
+                        "in": "query"
                     }
                 ],
                 "responses": {
