@@ -57,6 +57,8 @@ func (h *EventsHandler) Record(w http.ResponseWriter, r *http.Request) {
 // @Tags        events
 // @Produce     json
 // @Param       limit query int false "Max events to return" default(50)
+// @Param       from  query int false "Only include events at or after this Unix ms timestamp"
+// @Param       to    query int false "Only include events strictly before this Unix ms timestamp"
 // @Success     200 {object} models.EventsResponse
 // @Failure     401 {object} map[string]string
 // @Security    BearerAuth
@@ -74,11 +76,25 @@ func (h *EventsHandler) List(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	items, err := h.DB.GetEvents(r.Context(), claims.UserID, limit)
+	from := parseEpochMs(r.URL.Query().Get("from"))
+	to := parseEpochMs(r.URL.Query().Get("to"))
+
+	items, err := h.DB.GetEvents(r.Context(), claims.UserID, limit, from, to)
 	if err != nil {
 		jsonError(w, "could not fetch events", http.StatusInternalServerError)
 		return
 	}
 
 	jsonOK(w, models.EventsResponse{Items: items})
+}
+
+func parseEpochMs(s string) int64 {
+	if s == "" {
+		return 0
+	}
+	v, err := strconv.ParseInt(s, 10, 64)
+	if err != nil || v < 0 {
+		return 0
+	}
+	return v
 }

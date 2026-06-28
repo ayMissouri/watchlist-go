@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -62,17 +63,24 @@ func (d *DB) EnrichEvent(ctx context.Context, id int64, genres []string, release
 	return err
 }
 
-// GetEvents returns a user's most recent events starting with the newest.
-func (d *DB) GetEvents(ctx context.Context, userID string, limit int) ([]models.UserEvent, error) {
+func (d *DB) GetEvents(ctx context.Context, userID string, limit int, fromMs, toMs int64) ([]models.UserEvent, error) {
+	if fromMs < 0 {
+		fromMs = 0
+	}
+	if toMs <= 0 {
+		toMs = math.MaxInt64
+	}
 	rows, err := d.Pool.Query(ctx, `
 		SELECT id, event_type, source, item_id, media_type, imdb_id, title,
 		       season, episode, runtime_minutes, genres, release_year, metadata,
 		       (EXTRACT(EPOCH FROM occurred_at) * 1000)::BIGINT AS occurred_ms
 		FROM user_events
 		WHERE user_id = $1
+		  AND (EXTRACT(EPOCH FROM occurred_at) * 1000)::BIGINT >= $2
+		  AND (EXTRACT(EPOCH FROM occurred_at) * 1000)::BIGINT <  $3
 		ORDER BY occurred_at DESC
-		LIMIT $2
-	`, userID, limit)
+		LIMIT $4
+	`, userID, fromMs, toMs, limit)
 	if err != nil {
 		return nil, err
 	}
