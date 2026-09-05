@@ -62,10 +62,10 @@ func (d *DB) GetUser(ctx context.Context, id string) (*models.User, error) {
 	u := &models.User{}
 	// QueryRow returns a single row and scan reads the column values into Go variables in order.
 	err := d.Pool.QueryRow(ctx,
-		`SELECT id, username, avatar, COALESCE(display_name, ''), has_access,
+		`SELECT id, username, avatar, COALESCE(display_name, ''), has_access, settings,
 		        COALESCE((EXTRACT(EPOCH FROM created_at) * 1000)::BIGINT, 0)
 		 FROM users WHERE id = $1`, id,
-	).Scan(&u.ID, &u.Username, &u.Avatar, &u.DisplayName, &u.HasAccess, &u.CreatedAt)
+	).Scan(&u.ID, &u.Username, &u.Avatar, &u.DisplayName, &u.HasAccess, &u.Settings, &u.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -77,6 +77,14 @@ func (d *DB) UpdateDisplayName(ctx context.Context, id, name string) error {
 		UPDATE users SET display_name = NULLIF($2, ''), updated_at = NOW()
 		WHERE id = $1
 	`, id, name)
+	return err
+}
+
+func (d *DB) UpdateSettings(ctx context.Context, id string, patch json.RawMessage) error {
+	_, err := d.Pool.Exec(ctx, `
+		UPDATE users SET settings = settings || $2::jsonb, updated_at = NOW()
+		WHERE id = $1
+	`, id, []byte(patch))
 	return err
 }
 

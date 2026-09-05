@@ -1,13 +1,16 @@
 package models
 
+import "encoding/json"
+
 type User struct {
 	ID       string `json:"id"`
 	Username string `json:"username"`
 	// omitempty means if field is empty, it will be omitted from the JSON response.
-	Avatar    string `json:"avatar,omitempty"`
+	Avatar      string `json:"avatar,omitempty"`
 	DisplayName string `json:"display_name,omitempty"`
-	HasAccess bool `json:"has_access"`
-	CreatedAt int64 `json:"created_at,omitempty"`
+	HasAccess   bool   `json:"has_access"`
+	Settings  json.RawMessage `json:"settings,omitempty" swaggertype:"object"`
+	CreatedAt int64           `json:"created_at,omitempty"`
 }
 
 type Progress struct {
@@ -52,14 +55,14 @@ type WatchlistItem struct {
 	PosterPath   string          `json:"poster_path,omitempty"`
 	BackdropPath string          `json:"backdrop_path,omitempty"`
 	Status       WatchlistStatus `json:"status"`
-	Progress Progress `json:"progress"`
+	Progress     Progress        `json:"progress"`
 	// A *int can be nil.
 	LastSeasonWatched  *int         `json:"last_season_watched,omitempty"`
 	LastEpisodeWatched *int         `json:"last_episode_watched,omitempty"`
-	EpisodesWatched int          `json:"episodes_watched,omitempty"`
-	EpisodesTotal   int          `json:"episodes_total,omitempty"`
-	ShowProgress    ShowProgress `json:"show_progress,omitempty"`
-	LastUpdated     int64        `json:"last_updated"`
+	EpisodesWatched    int          `json:"episodes_watched,omitempty"`
+	EpisodesTotal      int          `json:"episodes_total,omitempty"`
+	ShowProgress       ShowProgress `json:"show_progress,omitempty"`
+	LastUpdated        int64        `json:"last_updated"`
 }
 
 type UpdateProgressRequest struct {
@@ -78,7 +81,8 @@ type UpdateStatusRequest struct {
 }
 
 type UpdateUserRequest struct {
-	DisplayName string `json:"display_name"`
+	DisplayName *string         `json:"display_name,omitempty"`
+	Settings    json.RawMessage `json:"settings,omitempty" swaggertype:"object"`
 }
 
 type PaginationMeta struct {
@@ -239,11 +243,11 @@ type CalendarEntry struct {
 	Season       int    `json:"season,omitempty"`
 	Episode      int    `json:"episode,omitempty"`
 	EpisodeTitle string `json:"episode_title,omitempty"`
-	ReleaseDate int64 `json:"release_date"`
+	ReleaseDate  int64  `json:"release_date"`
 	// Released is true once the release date has passed.
 	Released bool   `json:"released"`
 	Link     string `json:"link,omitempty"`
-	UserID string `json:"-"`
+	UserID   string `json:"-"`
 }
 
 type CalendarResponse struct {

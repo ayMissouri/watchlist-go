@@ -151,11 +151,14 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-const maxDisplayNameLen = 50
+const (
+	maxDisplayNameLen = 50
+	maxSettingsBytes  = 16 << 10
+)
 
 // UpdateMe godoc
 // @Summary     Update current user
-// @Description Updates the authenticated user's profile (display name). An empty display name clears it, falling back to the username.
+// @Description Updates the authenticated user's profile. Omitted fields are left untouched. An empty display name clears it, falling back to the username. Settings is a free-form object (subtitle styling etc.) shallow-merged into the stored settings.
 // @Tags        auth
 // @Accept      json
 // @Produce     json
@@ -175,15 +178,32 @@ func (h *AuthHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	name := strings.TrimSpace(req.DisplayName)
-	if len([]rune(name)) > maxDisplayNameLen {
-		jsonError(w, "display name too long", http.StatusBadRequest)
-		return
+	if req.DisplayName != nil {
+		name := strings.TrimSpace(*req.DisplayName)
+		if len([]rune(name)) > maxDisplayNameLen {
+			jsonError(w, "display name too long", http.StatusBadRequest)
+			return
+		}
+		if err := h.DB.UpdateDisplayName(r.Context(), claims.UserID, name); err != nil {
+			jsonError(w, "could not update profile", http.StatusInternalServerError)
+			return
+		}
 	}
 
-	if err := h.DB.UpdateDisplayName(r.Context(), claims.UserID, name); err != nil {
-		jsonError(w, "could not update profile", http.StatusInternalServerError)
-		return
+	if req.Settings != nil {
+		if len(req.Settings) > maxSettingsBytes {
+			jsonError(w, "settings too large", http.StatusBadRequest)
+			return
+		}
+		var obj map[string]json.RawMessage
+		if err := json.Unmarshal(req.Settings, &obj); err != nil {
+			jsonError(w, "settings must be a JSON object", http.StatusBadRequest)
+			return
+		}
+		if err := h.DB.UpdateSettings(r.Context(), claims.UserID, req.Settings); err != nil {
+			jsonError(w, "could not update settings", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	user, err := h.DB.GetUser(r.Context(), claims.UserID)
