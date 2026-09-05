@@ -131,7 +131,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Updates the authenticated user's profile (display name). An empty display name clears it, falling back to the username.",
+                "description": "Updates the authenticated user's profile. Omitted fields are left untouched. An empty display name clears it, falling back to the username. Settings is a free-form object (subtitle styling etc.) shallow-merged into the stored settings.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2062,6 +2062,9 @@ const docTemplate = `{
             "properties": {
                 "display_name": {
                     "type": "string"
+                },
+                "settings": {
+                    "type": "object"
                 }
             }
         },
@@ -2083,6 +2086,9 @@ const docTemplate = `{
                 },
                 "id": {
                     "type": "string"
+                },
+                "settings": {
+                    "type": "object"
                 },
                 "username": {
                     "type": "string"

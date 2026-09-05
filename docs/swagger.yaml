@@ -488,6 +488,8 @@ definitions:
     properties:
       display_name:
         type: string
+      settings:
+        type: object
     type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.User:
     properties:
@@ -503,6 +505,8 @@ definitions:
         type: boolean
       id:
         type: string
+      settings:
+        type: object
       username:
         type: string
     type: object
@@ -757,8 +761,10 @@ paths:
     patch:
       consumes:
       - application/json
-      description: Updates the authenticated user's profile (display name). An empty
-        display name clears it, falling back to the username.
+      description: Updates the authenticated user's profile. Omitted fields are left
+        untouched. An empty display name clears it, falling back to the username.
+        Settings is a free-form object (subtitle styling etc.) shallow-merged into
+        the stored settings.
       parameters:
       - description: Profile fields to update
         in: body
