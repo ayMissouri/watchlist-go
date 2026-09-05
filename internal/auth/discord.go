@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/ravener/discord-oauth2"
@@ -15,22 +16,25 @@ import (
 
 // OAuthConfig holds the Discord OAuth2 configuration.
 var OAuthConfig *oauth2.Config
+var accessGuildIDs = []string{"1545627922532933734", "626739861025587200"}
+var discordAPI = "https://discord.com/api"
 
 func InitDiscord() {
 	OAuthConfig = &oauth2.Config{
 		ClientID:     os.Getenv("DISCORD_CLIENT_ID"),
 		ClientSecret: os.Getenv("DISCORD_CLIENT_SECRET"),
 		RedirectURL:  os.Getenv("DISCORD_REDIRECT_URL"),
-		Scopes:       []string{discord.ScopeIdentify},
+		Scopes:       []string{discord.ScopeIdentify, discord.ScopeGuilds},
 		Endpoint:     discord.Endpoint,
 	}
 }
 
 // DiscordUser is the relevant part of Discord's /users/@me response.
 type DiscordUser struct {
-	ID       string `json:"id"`
-	Username string `json:"username"`
-	Avatar   string `json:"avatar"`
+	ID        string `json:"id"`
+	Username  string `json:"username"`
+	Avatar    string `json:"avatar"`
+	HasAccess bool   `json:"-"`
 }
 
 // FetchDiscordUser exchanges an OAuth2 code for a token,
@@ -45,9 +49,29 @@ func FetchDiscordUser(ctx context.Context, code string) (*DiscordUser, error) {
 	// attaches the Bearer token to every request
 	client := OAuthConfig.Client(ctx, token)
 
-	resp, err := client.Get("https://discord.com/api/users/@me")
+	var u DiscordUser
+	if err := getJSON(client, discordAPI+"/users/@me", &u); err != nil {
+		return nil, err
+	}
+
+	type guild struct {
+		ID string `json:"id"`
+	}
+	var guilds []guild
+	if err := getJSON(client, discordAPI+"/users/@me/guilds", &guilds); err != nil {
+		return nil, err
+	}
+	u.HasAccess = slices.ContainsFunc(guilds, func(g guild) bool {
+		return slices.Contains(accessGuildIDs, g.ID)
+	})
+
+	return &u, nil
+}
+
+func getJSON(client *http.Client, url string, dst any) error {
+	resp, err := client.Get(url)
 	if err != nil {
-		return nil, fmt.Errorf("discord api request: %w", err)
+		return fmt.Errorf("discord api request: %w", err)
 	}
 	defer func() {
 		_ = resp.Body.Close()
@@ -55,15 +79,13 @@ func FetchDiscordUser(ctx context.Context, code string) (*DiscordUser, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("discord api returned %d: %s", resp.StatusCode, body)
+		return fmt.Errorf("discord api returned %d: %s", resp.StatusCode, body)
 	}
 
-	var u DiscordUser
-	if err := json.NewDecoder(resp.Body).Decode(&u); err != nil {
-		return nil, fmt.Errorf("decode discord user: %w", err)
+	if err := json.NewDecoder(resp.Body).Decode(dst); err != nil {
+		return fmt.Errorf("decode discord response: %w", err)
 	}
-
-	return &u, nil
+	return nil
 }
 
 func AvatarURL(userID, avatar string) string {

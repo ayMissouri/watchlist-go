@@ -47,13 +47,14 @@ func (d *DB) UpsertUser(ctx context.Context, u *models.User) error {
 	// $1, $2, $3 are placeholders for query params.
 	// ON CONFLICT makes it so if a user logs in again, their username and avatar get updated, rather than throwing a duplicate key error.
 	_, err := d.Pool.Exec(ctx, `
-		INSERT INTO users (id, username, avatar)
-		VALUES ($1, $2, $3)
+		INSERT INTO users (id, username, avatar, has_access)
+		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (id) DO UPDATE
 		  SET username   = EXCLUDED.username,
 		      avatar     = EXCLUDED.avatar,
+		      has_access = EXCLUDED.has_access,
 		      updated_at = NOW()
-	`, u.ID, u.Username, u.Avatar)
+	`, u.ID, u.Username, u.Avatar, u.HasAccess)
 	return err
 }
 
@@ -61,10 +62,10 @@ func (d *DB) GetUser(ctx context.Context, id string) (*models.User, error) {
 	u := &models.User{}
 	// QueryRow returns a single row and scan reads the column values into Go variables in order.
 	err := d.Pool.QueryRow(ctx,
-		`SELECT id, username, avatar, COALESCE(display_name, ''),
+		`SELECT id, username, avatar, COALESCE(display_name, ''), has_access,
 		        COALESCE((EXTRACT(EPOCH FROM created_at) * 1000)::BIGINT, 0)
 		 FROM users WHERE id = $1`, id,
-	).Scan(&u.ID, &u.Username, &u.Avatar, &u.DisplayName, &u.CreatedAt)
+	).Scan(&u.ID, &u.Username, &u.Avatar, &u.DisplayName, &u.HasAccess, &u.CreatedAt)
 	if err != nil {
 		return nil, err
 	}

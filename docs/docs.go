@@ -2078,6 +2078,9 @@ const docTemplate = `{
                 "display_name": {
                     "type": "string"
                 },
+                "has_access": {
+                    "type": "boolean"
+                },
                 "id": {
                     "type": "string"
                 },

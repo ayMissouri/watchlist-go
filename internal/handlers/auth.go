@@ -84,9 +84,10 @@ func (h *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 
 	// Save or update the user in the DB
 	user := &models.User{
-		ID:       discordUser.ID,
-		Username: discordUser.Username,
-		Avatar:   discordUser.Avatar,
+		ID:        discordUser.ID,
+		Username:  discordUser.Username,
+		Avatar:    discordUser.Avatar,
+		HasAccess: discordUser.HasAccess,
 	}
 	if err := h.DB.UpsertUser(r.Context(), user); err != nil {
 		http.Error(w, `{"error":"could not save user"}`, http.StatusInternalServerError)

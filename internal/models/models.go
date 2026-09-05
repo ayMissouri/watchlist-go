@@ -6,6 +6,7 @@ type User struct {
 	// omitempty means if field is empty, it will be omitted from the JSON response.
 	Avatar    string `json:"avatar,omitempty"`
 	DisplayName string `json:"display_name,omitempty"`
+	HasAccess bool `json:"has_access"`
 	CreatedAt int64 `json:"created_at,omitempty"`
 }
 
