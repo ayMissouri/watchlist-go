@@ -17,7 +17,7 @@ type CalendarHandler struct {
 
 // GetAll godoc
 // @Summary     Get calendar
-// @Description Returns the user's upcoming releases (unreleased movies and not-yet-aired episodes of watchlisted shows), soonest first.
+// @Description What's coming up for this user: movies that aren't out yet and episodes that haven't aired, from shows on their watchlist. Soonest first.
 // @Tags        calendar
 // @Produce     json
 // @Success     200 {object} models.CalendarResponse
@@ -46,7 +46,7 @@ func (h *CalendarHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 
 // Refresh godoc
 // @Summary     Refresh calendar
-// @Description Re-syncs the user's calendar from their watchlist against the meta service, then returns the updated list. Useful right after adding an upcoming title.
+// @Description Rebuilds the calendar from the watchlist using fresh data from the meta service, then returns it. Handy right after adding something that hasn't come out yet.
 // @Tags        calendar
 // @Produce     json
 // @Success     200 {object} models.CalendarResponse

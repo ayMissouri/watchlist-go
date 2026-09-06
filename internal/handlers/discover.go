@@ -28,7 +28,7 @@ var catalogSort = map[string]string{
 
 // Discover godoc
 // @Summary     Discover movies or shows
-// @Description Returns a single catalog of movies/shows. Use `sort` (with optional `genre`) for the popular/top-rated catalogs, `year` for one release year, or `provider` for a streaming service. `provider` takes precedence over `year`, which takes precedence over `sort`. Results are cached for 1 hour.
+// @Description Returns one catalog. Use `sort` (optionally with `genre`) for popular/top-rated, `year` for a single release year, or `provider` for a streaming service. If you send more than one, `provider` wins over `year`, which wins over `sort`. Cached for an hour.
 // @Tags        discover
 // @Produce     json
 // @Param       type     query string true  "Media type" Enums(movie, series)
@@ -100,7 +100,7 @@ func (h *DiscoverHandler) Discover(w http.ResponseWriter, r *http.Request) {
 
 // DiscoverAll godoc
 // @Summary     Discover all catalogs
-// @Description Returns all four catalogs (popular movies, popular shows, top-rated movies, top-rated shows) in a single request. All results are cached for 1 hour.
+// @Description Popular movies, popular shows, top-rated movies and top-rated shows, all in one call. Cached for an hour.
 // @Tags        discover
 // @Produce     json
 // @Success     200 {object} models.DiscoverAllResponse
@@ -151,7 +151,7 @@ func (h *DiscoverHandler) DiscoverAll(w http.ResponseWriter, r *http.Request) {
 
 // MovieDetail godoc
 // @Summary     Get movie details
-// @Description Returns full metadata for a movie by ID. Results are cached for 24 hours.
+// @Description Everything we know about a movie. Cached for a day.
 // @Tags        meta
 // @Produce     json
 // @Param       id  path     string true "ID (e.g. tt0111161)"
@@ -178,7 +178,7 @@ func (h *DiscoverHandler) MovieDetail(w http.ResponseWriter, r *http.Request) {
 
 // SeriesDetail godoc
 // @Summary     Get series details
-// @Description Returns full metadata for a series by ID, including all episodes in the videos array. Results are cached for 24 hours.
+// @Description Everything we know about a series, episodes included (they're in `videos`). Cached for a day.
 // @Tags        meta
 // @Produce     json
 // @Param       id  path     string true "ID (e.g. tt3322312)"
@@ -205,7 +205,7 @@ func (h *DiscoverHandler) SeriesDetail(w http.ResponseWriter, r *http.Request) {
 
 // Search godoc
 // @Summary     Search movies and shows
-// @Description Searches for movies and/or shows by query string. With no type filter, returns mixed results weighted by recency.
+// @Description Search by title. Leave `type` out and you get movies and shows mixed together, newest first.
 // @Tags        search
 // @Produce     json
 // @Param       q    query string true  "Search query"

@@ -23,7 +23,7 @@ const docTemplate = `{
     "paths": {
         "/auth/callback": {
             "get": {
-                "description": "Handles the Discord redirect, issues a JWT, and redirects to the frontend",
+                "description": "Where Discord sends the user back. Checks the CSRF state, issues a JWT, and bounces them to the frontend with it.",
                 "tags": [
                     "auth"
                 ],
@@ -90,7 +90,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns the authenticated users profile",
+                "description": "Returns the profile of whoever the token belongs to.",
                 "produces": [
                     "application/json"
                 ],
@@ -131,7 +131,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Updates the authenticated user's profile. Omitted fields are left untouched. An empty display name clears it, falling back to the username. Settings is a free-form object (subtitle styling etc.) shallow-merged into the stored settings.",
+                "description": "Patches the current user's profile. Leave a field out and it stays as-is. Send an empty display name to clear it, in which case the username shows instead. ` + "`" + `settings` + "`" + ` is a free-form object (subtitle styling, that kind of thing) and gets shallow-merged into whatever is already stored.",
                 "consumes": [
                     "application/json"
                 ],
@@ -197,7 +197,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns the user's upcoming releases (unreleased movies and not-yet-aired episodes of watchlisted shows), soonest first.",
+                "description": "What's coming up for this user: movies that aren't out yet and episodes that haven't aired, from shows on their watchlist. Soonest first.",
                 "produces": [
                     "application/json"
                 ],
@@ -231,7 +231,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Re-syncs the user's calendar from their watchlist against the meta service, then returns the updated list. Useful right after adding an upcoming title.",
+                "description": "Rebuilds the calendar from the watchlist using fresh data from the meta service, then returns it. Handy right after adding something that hasn't come out yet.",
                 "produces": [
                     "application/json"
                 ],
@@ -269,7 +269,7 @@ const docTemplate = `{
         },
         "/discover": {
             "get": {
-                "description": "Returns a single catalog of movies/shows. Use ` + "`" + `sort` + "`" + ` (with optional ` + "`" + `genre` + "`" + `) for the popular/top-rated catalogs, ` + "`" + `year` + "`" + ` for one release year, or ` + "`" + `provider` + "`" + ` for a streaming service. ` + "`" + `provider` + "`" + ` takes precedence over ` + "`" + `year` + "`" + `, which takes precedence over ` + "`" + `sort` + "`" + `. Results are cached for 1 hour.",
+                "description": "Returns one catalog. Use ` + "`" + `sort` + "`" + ` (optionally with ` + "`" + `genre` + "`" + `) for popular/top-rated, ` + "`" + `year` + "`" + ` for a single release year, or ` + "`" + `provider` + "`" + ` for a streaming service. If you send more than one, ` + "`" + `provider` + "`" + ` wins over ` + "`" + `year` + "`" + `, which wins over ` + "`" + `sort` + "`" + `. Cached for an hour.",
                 "produces": [
                     "application/json"
                 ],
@@ -355,7 +355,7 @@ const docTemplate = `{
         },
         "/discover/all": {
             "get": {
-                "description": "Returns all four catalogs (popular movies, popular shows, top-rated movies, top-rated shows) in a single request. All results are cached for 1 hour.",
+                "description": "Popular movies, popular shows, top-rated movies and top-rated shows, all in one call. Cached for an hour.",
                 "produces": [
                     "application/json"
                 ],
@@ -389,7 +389,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns the user's most recent tracked events, newest first. Useful for a transparency/activity feed.",
+                "description": "The user's latest events, newest first. Meant for an activity feed, or just for showing people what we've recorded about them.",
                 "produces": [
                     "application/json"
                 ],
@@ -442,7 +442,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Accepts a batch of client-reported events (play/pause, heartbeats, page views, etc.) and appends them to the user's activity log. Events with an empty or over-long type are skipped.",
+                "description": "Takes a batch of events from the client (play/pause, heartbeats, page views, that kind of thing) and appends them to the user's activity log. Anything with a blank or absurdly long type is dropped quietly.",
                 "consumes": [
                     "application/json"
                 ],
@@ -488,7 +488,7 @@ const docTemplate = `{
         },
         "/health": {
             "get": {
-                "description": "Returns API and database status",
+                "description": "Quick liveness check. Also says whether the database is reachable.",
                 "produces": [
                     "application/json"
                 ],
@@ -506,9 +506,190 @@ const docTemplate = `{
                 }
             }
         },
+        "/lobbies": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Opens a lobby with a shareable 6-character code. The body optionally seeds the video and playback state.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "lobbies"
+                ],
+                "summary": "Create a watch-together lobby",
+                "parameters": [
+                    {
+                        "description": "Initial state",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.UpdateLobbyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Lobby"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/lobbies/{code}/state": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Every member has the remote. Send only what changed such as ` + "`" + `playing` + "`" + `, ` + "`" + `position` + "`" + ` (seconds), or ` + "`" + `item_id` + "`" + ` with ` + "`" + `season` + "`" + `/` + "`" + `episode` + "`" + ` to switch video.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "lobbies"
+                ],
+                "summary": "Play, pause, seek, or switch video",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Lobby code",
+                        "name": "code",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "What changed",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.UpdateLobbyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Lobby"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/lobbies/{code}/stream": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Server-Sent Events. You are a member for as long as this connection is open.",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "lobbies"
+                ],
+                "summary": "Join a lobby and follow its state",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Lobby code",
+                        "name": "code",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "One ` + "`" + `state` + "`" + ` event per change",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Lobby"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/meta/movie/{id}": {
             "get": {
-                "description": "Returns full metadata for a movie by ID. Results are cached for 24 hours.",
+                "description": "Everything we know about a movie. Cached for a day.",
                 "produces": [
                     "application/json"
                 ],
@@ -555,7 +736,7 @@ const docTemplate = `{
         },
         "/meta/series/{id}": {
             "get": {
-                "description": "Returns full metadata for a series by ID, including all episodes in the videos array. Results are cached for 24 hours.",
+                "description": "Everything we know about a series, episodes included (they're in ` + "`" + `videos` + "`" + `). Cached for a day.",
                 "produces": [
                     "application/json"
                 ],
@@ -719,7 +900,7 @@ const docTemplate = `{
         },
         "/search": {
             "get": {
-                "description": "Searches for movies and/or shows by query string. With no type filter, returns mixed results weighted by recency.",
+                "description": "Search by title. Leave ` + "`" + `type` + "`" + ` out and you get movies and shows mixed together, newest first.",
                 "produces": [
                     "application/json"
                 ],
@@ -781,7 +962,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns the authenticated user's all-time activity summary: totals, watch time, top genres and top titles.",
+                "description": "All-time numbers for the profile page: totals, watch time, top genres and top titles.",
                 "produces": [
                     "application/json"
                 ],
@@ -824,7 +1005,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns the authenticated user's \"wrapped\" stats for a year: watch time, counts, top genres/titles/decades, monthly/hourly/weekday histograms, streaks and night-owl flag. Defaults to the current year.",
+                "description": "Wrapped-style summary for one year: total watch time, counts, top genres/titles/decades, when you tend to watch (by month, hour and weekday), streaks, and whether you're a night owl. Current year if ` + "`" + `year` + "`" + ` is left out.",
                 "produces": [
                     "application/json"
                 ],
@@ -885,7 +1066,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns a paginated, filterable list of watchlist items",
+                "description": "The user's watchlist, one page at a time. Filter by type or status, sort however you like.",
                 "produces": [
                     "application/json"
                 ],
@@ -976,7 +1157,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Deletes multiple watchlist items by ID in a single request",
+                "description": "Deletes several items in one go and tells you how many actually went.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1087,7 +1268,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Creates or fully replaces a watchlist item",
+                "description": "Adds the item, or replaces the whole thing if it's already there. Use the progress/status endpoints for partial updates.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1192,7 +1373,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Lightweight progress-only update without replacing the full item",
+                "description": "Just bumps playback progress. Everything else on the item stays as it was.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1587,6 +1768,76 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.Lobby": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "episode": {
+                    "type": "integer"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "item_id": {
+                    "type": "string"
+                },
+                "last_action": {
+                    "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.LobbyAction"
+                },
+                "members": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.LobbyMember"
+                    }
+                },
+                "playing": {
+                    "type": "boolean"
+                },
+                "position": {
+                    "type": "number"
+                },
+                "season": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.LobbyAction": {
+            "type": "object",
+            "properties": {
+                "at": {
+                    "type": "integer"
+                },
+                "by": {
+                    "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.LobbyMember"
+                },
+                "type": {
+                    "description": "\"play\", \"pause\", \"seek\", or \"change\"",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.LobbyMember": {
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "type": "string"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "username": {
                     "type": "string"
                 }
             }
@@ -2020,6 +2271,26 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.UpdateLobbyRequest": {
+            "type": "object",
+            "properties": {
+                "episode": {
+                    "type": "integer"
+                },
+                "item_id": {
+                    "type": "string"
+                },
+                "playing": {
+                    "type": "boolean"
+                },
+                "position": {
+                    "type": "number"
+                },
+                "season": {
+                    "type": "integer"
+                }
+            }
+        },
         "github_com_ayMissouri_watchlist-go_git_internal_models.UpdateProgressRequest": {
             "type": "object",
             "properties": {
@@ -2072,7 +2343,6 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "avatar": {
-                    "description": "omitempty means if field is empty, it will be omitted from the JSON response.",
                     "type": "string"
                 },
                 "created_at": {
@@ -2185,7 +2455,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "last_season_watched": {
-                    "description": "A *int can be nil.",
+                    "description": "Pointers so \"never set\" is distinguishable from season/episode 0.",
                     "type": "integer"
                 },
                 "last_updated": {

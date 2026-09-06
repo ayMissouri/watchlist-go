@@ -8,15 +8,13 @@ import (
 	"github.com/ayMissouri/watchlist-go.git/internal/auth"
 )
 
-// contextKey is an unexported type for context keys in this package.
-// Using a custom type prevents key collisions with other packages that also store values in context.
+// contextKey is our own type so nothing else stuffing values into the ctx can collide with ours.
 type contextKey string
 
 const UserClaimsKey contextKey = "userClaims"
 
-// 1. RequireAuth is a middleware that validates the Bearer JWT on every request.
-// 2. Middleware in Chi is just a function that wraps a http.Handler,
-// it recieves the next handler, wraps it with logic, and calls next.ServeHTTP to continue the chain.
+// RequireAuth checks the Bearer JWT and puts the claims on the request context.
+// No valid token, no handler: the request stops here with a 401.
 func RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		header := r.Header.Get("Authorization")
@@ -34,13 +32,13 @@ func RequireAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		// context.WithValue attaches a value to the request context, so handlers further down can access it.
+		// Handlers pull these back out with ClaimsFromCtx.
 		ctx := context.WithValue(r.Context(), UserClaimsKey, claims)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
-// ClaimsFromCtx is a helper that makes it so helpers dont need to know about the context key type directly.
+// ClaimsFromCtx returns the claims RequireAuth/OptionalAuth stored, or nil if nobody's logged in.
 func ClaimsFromCtx(r *http.Request) *auth.Claims {
 	claims, _ := r.Context().Value(UserClaimsKey).(*auth.Claims)
 	return claims

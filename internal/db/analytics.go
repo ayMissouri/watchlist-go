@@ -273,7 +273,7 @@ func (d *DB) GetDistinctWatchDays(ctx context.Context, userID string, start, end
 	return days, rows.Err()
 }
 
-// GetEdgeWatch returns the first or last watch eventin the window.
+// GetEdgeWatch returns the first or last watch event in the window.
 func (d *DB) GetEdgeWatch(ctx context.Context, userID string, start, end time.Time, newest bool) (*models.WatchRef, error) {
 	order := "ASC"
 	if newest {

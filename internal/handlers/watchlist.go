@@ -27,7 +27,7 @@ type WatchlistHandler struct {
 
 // GetAll godoc
 // @Summary     Get watchlist
-// @Description Returns a paginated, filterable list of watchlist items
+// @Description The user's watchlist, one page at a time. Filter by type or status, sort however you like.
 // @Tags        watchlist
 // @Produce     json
 // @Param       page     query int    false "Page number"        default(1)
@@ -94,7 +94,7 @@ func (h *WatchlistHandler) GetOne(w http.ResponseWriter, r *http.Request) {
 
 // Upsert godoc
 // @Summary     Add or update watchlist item
-// @Description Creates or fully replaces a watchlist item
+// @Description Adds the item, or replaces the whole thing if it's already there. Use the progress/status endpoints for partial updates.
 // @Tags        watchlist
 // @Accept      json
 // @Produce     json
@@ -199,7 +199,7 @@ func detailLink(mediaType, imdbID string) string {
 
 // UpdateProgress godoc
 // @Summary     Update item progress
-// @Description Lightweight progress-only update without replacing the full item
+// @Description Just bumps playback progress. Everything else on the item stays as it was.
 // @Tags        watchlist
 // @Accept      json
 // @Param       id   path     string                         true "Item ID"
@@ -448,7 +448,7 @@ func (h *WatchlistHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // BulkDelete godoc
 // @Summary     Bulk delete watchlist items
-// @Description Deletes multiple watchlist items by ID in a single request
+// @Description Deletes several items in one go and tells you how many actually went.
 // @Tags        watchlist
 // @Accept      json
 // @Produce     json

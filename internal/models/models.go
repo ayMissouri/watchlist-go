@@ -5,7 +5,6 @@ import "encoding/json"
 type User struct {
 	ID       string `json:"id"`
 	Username string `json:"username"`
-	// omitempty means if field is empty, it will be omitted from the JSON response.
 	Avatar      string `json:"avatar,omitempty"`
 	DisplayName string `json:"display_name,omitempty"`
 	HasAccess   bool   `json:"has_access"`
@@ -56,7 +55,7 @@ type WatchlistItem struct {
 	BackdropPath string          `json:"backdrop_path,omitempty"`
 	Status       WatchlistStatus `json:"status"`
 	Progress     Progress        `json:"progress"`
-	// A *int can be nil.
+	// Pointers so "never set" is distinguishable from season/episode 0.
 	LastSeasonWatched  *int         `json:"last_season_watched,omitempty"`
 	LastEpisodeWatched *int         `json:"last_episode_watched,omitempty"`
 	EpisodesWatched    int          `json:"episodes_watched,omitempty"`
@@ -148,7 +147,6 @@ type BehaviorHints struct {
 	HasScheduledVideos bool    `json:"hasScheduledVideos"`
 }
 
-// popularity scores across multiple platforms
 type Popularities map[string]any
 
 type Episode struct {
@@ -196,7 +194,7 @@ type MovieDetail struct {
 }
 
 type SeriesDetail struct {
-	// embeds MovieDetail, so it has all the same fields, plus the ones defined below.
+	// Everything a movie has, plus the series-only bits below.
 	MovieDetail
 	Status string `json:"status,omitempty"`
 	TvdbID *int   `json:"tvdb_id,omitempty"`
@@ -252,4 +250,38 @@ type CalendarEntry struct {
 
 type CalendarResponse struct {
 	Items []CalendarEntry `json:"items"`
+}
+
+type LobbyMember struct {
+	ID          string `json:"id"`
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name,omitempty"`
+	Avatar      string `json:"avatar,omitempty"`
+}
+
+type LobbyAction struct {
+	Type string      `json:"type"` // "play", "pause", "seek", or "change"
+	By   LobbyMember `json:"by"`
+	At   int64       `json:"at"`
+}
+
+type Lobby struct {
+	Code       string        `json:"code"`
+	Host       string        `json:"host"`
+	ItemID     string        `json:"item_id,omitempty"`
+	Season     int           `json:"season,omitzero"`
+	Episode    int           `json:"episode,omitzero"`
+	Playing    bool          `json:"playing"`
+	Position   float64       `json:"position"`
+	UpdatedAt  int64         `json:"updated_at"`
+	LastAction LobbyAction   `json:"last_action,omitzero"`
+	Members    []LobbyMember `json:"members"`
+}
+
+type UpdateLobbyRequest struct {
+	ItemID   string   `json:"item_id,omitempty"`
+	Season   int      `json:"season,omitzero"`
+	Episode  int      `json:"episode,omitzero"`
+	Playing  *bool    `json:"playing,omitempty"`
+	Position *float64 `json:"position,omitempty"`
 }

@@ -18,7 +18,7 @@ type StatsHandler struct {
 
 // Profile godoc
 // @Summary     Profile stats
-// @Description Returns the authenticated user's all-time activity summary: totals, watch time, top genres and top titles.
+// @Description All-time numbers for the profile page: totals, watch time, top genres and top titles.
 // @Tags        stats
 // @Produce     json
 // @Success     200 {object} models.ProfileStats
@@ -41,7 +41,7 @@ func (h *StatsHandler) Profile(w http.ResponseWriter, r *http.Request) {
 
 // Wrapped godoc
 // @Summary     Year in review
-// @Description Returns the authenticated user's "wrapped" stats for a year: watch time, counts, top genres/titles/decades, monthly/hourly/weekday histograms, streaks and night-owl flag. Defaults to the current year.
+// @Description Wrapped-style summary for one year: total watch time, counts, top genres/titles/decades, when you tend to watch (by month, hour and weekday), streaks, and whether you're a night owl. Current year if `year` is left out.
 // @Tags        stats
 // @Produce     json
 // @Param       year query int false "Calendar year (UTC)" default(2026)

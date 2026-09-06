@@ -23,7 +23,7 @@ type EventsHandler struct {
 
 // Record godoc
 // @Summary     Ingest activity events
-// @Description Accepts a batch of client-reported events (play/pause, heartbeats, page views, etc.) and appends them to the user's activity log. Events with an empty or over-long type are skipped.
+// @Description Takes a batch of events from the client (play/pause, heartbeats, page views, that kind of thing) and appends them to the user's activity log. Anything with a blank or absurdly long type is dropped quietly.
 // @Tags        events
 // @Accept      json
 // @Param       body body models.RecordEventsRequest true "Batch of events"
@@ -53,7 +53,7 @@ func (h *EventsHandler) Record(w http.ResponseWriter, r *http.Request) {
 
 // List godoc
 // @Summary     Recent activity
-// @Description Returns the user's most recent tracked events, newest first. Useful for a transparency/activity feed.
+// @Description The user's latest events, newest first. Meant for an activity feed, or just for showing people what we've recorded about them.
 // @Tags        events
 // @Produce     json
 // @Param       limit query int false "Max events to return" default(50)

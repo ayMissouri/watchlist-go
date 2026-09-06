@@ -15,12 +15,8 @@ type DB struct {
 	Pool *pgxpool.Pool
 }
 
-// Every function that does I/O accepts a ctx as its first argument.
-// It lets us propagate deadlines and cancellations through a chain of calls,
-// for example, if a request times out, the context gets cancelled and your DB query stops automatically.
-
-// the * means New returns a pointer to a DB struct.
-// pointers in Go mean youre sharing the same piece of memory rather than copying it.
+// New opens the pool and pings it once, so a bad DATABASE_URL fails at
+// startup instead of on the first request.
 func New(ctx context.Context, dsn string) (*DB, error) {
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
@@ -28,8 +24,6 @@ func New(ctx context.Context, dsn string) (*DB, error) {
 	}
 
 	if err = pool.Ping(ctx); err != nil {
-		// %w wraps the original error.
-		// It means we can add context to an error while still preserving the original error underneath.
 		return nil, fmt.Errorf("db ping failed: %w", err)
 	}
 
@@ -44,8 +38,7 @@ func (d *DB) Ping(ctx context.Context) error {
 }
 
 func (d *DB) UpsertUser(ctx context.Context, u *models.User) error {
-	// $1, $2, $3 are placeholders for query params.
-	// ON CONFLICT makes it so if a user logs in again, their username and avatar get updated, rather than throwing a duplicate key error.
+	// Logging in again just refreshes username/avatar instead of tripping over the duplicate id.
 	_, err := d.Pool.Exec(ctx, `
 		INSERT INTO users (id, username, avatar, has_access)
 		VALUES ($1, $2, $3, $4)
@@ -60,7 +53,6 @@ func (d *DB) UpsertUser(ctx context.Context, u *models.User) error {
 
 func (d *DB) GetUser(ctx context.Context, id string) (*models.User, error) {
 	u := &models.User{}
-	// QueryRow returns a single row and scan reads the column values into Go variables in order.
 	err := d.Pool.QueryRow(ctx,
 		`SELECT id, username, avatar, COALESCE(display_name, ''), has_access, settings,
 		        COALESCE((EXTRACT(EPOCH FROM created_at) * 1000)::BIGINT, 0)
@@ -88,7 +80,8 @@ func (d *DB) UpdateSettings(ctx context.Context, id string, patch json.RawMessag
 	return err
 }
 
-// GetWatchlist returns all items for a user by item ID,
+// GetWatchlist returns one page of a user's items, filtered and sorted per q,
+// along with the total count across all pages.
 func (d *DB) GetWatchlist(ctx context.Context, userID string, q models.WatchlistQuery) ([]models.WatchlistItem, int, error) {
 	args := []any{userID}
 	where := "WHERE user_id = $1"
@@ -103,7 +96,7 @@ func (d *DB) GetWatchlist(ctx context.Context, userID string, q models.Watchlist
 		where += fmt.Sprintf(" AND status = $%d", len(args))
 	}
 
-	// gets total count of items.
+	// Total across every page, for the pagination metadata.
 	var total int
 	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM watchlist_items %s`, where)
 	if err := d.Pool.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
@@ -143,7 +136,7 @@ func (d *DB) GetWatchlist(ctx context.Context, userID string, q models.Watchlist
 		return nil, 0, err
 	}
 
-	// return empty array rather than nil for no results.
+	// [] rather than null in the JSON when there's nothing.
 	if items == nil {
 		items = []models.WatchlistItem{}
 	}
@@ -224,8 +217,8 @@ func (d *DB) DeleteItem(ctx context.Context, userID, itemID string) error {
 	return nil
 }
 
-// this is an interface with a single method.
-// both pgx.Row and pgx.Rows implement this interface, so scanItem can be used for both single-row and multi-row queries.
+// rowScanner is the one method pgx.Row and pgx.Rows have in common,
+// so scanItem works for both single-row and multi-row queries.
 type rowScanner interface {
 	Scan(dest ...any) error
 }

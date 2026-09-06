@@ -1,16 +1,13 @@
-// this means this file belongs to a different package from main.
 package handlers
 
 import (
-	// encoding/json provides functions for encoding and decoding JSON data.
 	"encoding/json"
-	// net/http provides HTTP client and server implementations
 	"net/http"
 
 	"github.com/ayMissouri/watchlist-go.git/internal/db"
 )
 
-// HealthResponse is a struct that represents the JSON response for the health endpoint.
+// HealthResponse is what /health hands back.
 type HealthResponse struct {
 	Status   string `json:"status"`
 	Database string `json:"database"`
@@ -18,13 +15,12 @@ type HealthResponse struct {
 
 // Health godoc
 // @Summary     Health check
-// @Description Returns API and database status
+// @Description Quick liveness check. Also says whether the database is reachable.
 // @Tags        system
 // @Produce     json
 // @Success     200 {object} HealthResponse
 // @Router      /health [get]
 func Health(database *db.DB) http.HandlerFunc {
-	// Health starting with a capital letter means this function is exported and can be used by other packages.
 	return func(w http.ResponseWriter, r *http.Request) {
 		dbStatus := "ok"
 		if err := database.Ping(r.Context()); err != nil {

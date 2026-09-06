@@ -14,7 +14,7 @@ const (
 
 var epochStart = time.Unix(0, 0)
 
-// all-time summary for a user profile page.
+// Profile builds the all-time summary shown on the profile page.
 func (s *Service) Profile(ctx context.Context, userID string) (models.ProfileStats, error) {
 	end := time.Now().AddDate(1, 0, 0)
 
@@ -68,7 +68,7 @@ func currentStreakDays(days []time.Time) int {
 		case day:
 			streak++
 		case 0:
-			// Same calendar day twice — ignore the duplicate.
+			// Same calendar day twice, skip the duplicate.
 		default:
 			return streak
 		}
@@ -185,7 +185,7 @@ func maxIndex(counts []int) int {
 
 var nightHours = map[int]bool{22: true, 23: true, 0: true, 1: true, 2: true, 3: true, 4: true}
 
-// isNightOwl reports whether at least 30% of watches happened in the night-hour
+// isNightOwl is true when 30% or more of watches landed between 22:00 and 05:00 UTC.
 func isNightOwl(byHour []int) bool {
 	total, night := 0, 0
 	for h, c := range byHour {
