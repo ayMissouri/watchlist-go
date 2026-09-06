@@ -61,6 +61,8 @@ type WatchlistItem struct {
 	EpisodesWatched    int          `json:"episodes_watched,omitempty"`
 	EpisodesTotal      int          `json:"episodes_total,omitempty"`
 	ShowProgress       ShowProgress `json:"show_progress,omitempty"`
+	// Plays is how many times the user has finished this. Server-owned: PUT ignores it,
+	// the status and /plays endpoints are what move it.
 	Plays       int   `json:"plays"`
 	LastUpdated int64 `json:"last_updated"`
 }
