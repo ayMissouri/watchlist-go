@@ -152,6 +152,10 @@ func (h *WatchlistHandler) Upsert(w http.ResponseWriter, r *http.Request) {
 			Title:     item.Title,
 			Metadata:  map[string]any{"status": string(item.Status)},
 		})
+
+		if item.Status == models.StatusWatched {
+			h.addPlay(r, &item)
+		}
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -185,6 +189,67 @@ func (h *WatchlistHandler) track(r *http.Request, ev models.UserEvent) {
 	}
 	ev.UserID = middleware.ClaimsFromCtx(r).UserID
 	h.Tracker.Record(r.Context(), ev)
+}
+
+func (h *WatchlistHandler) addPlay(r *http.Request, item *models.WatchlistItem) int {
+	userID := middleware.ClaimsFromCtx(r).UserID
+	plays, err := h.DB.AddPlays(r.Context(), userID, item.ID, 1)
+	if err != nil {
+		log.Printf("watchlist: add play for %s: %v", item.ID, err)
+		return item.Plays
+	}
+	item.Plays = plays
+
+	if item.Type == "movie" {
+		h.track(r, models.UserEvent{
+			EventType:      models.EventMovieWatch,
+			ItemID:         item.ID,
+			MediaType:      item.Type,
+			ImdbID:         item.ImdbID,
+			Title:          item.Title,
+			RuntimeMinutes: tracking.MinutesFromSeconds(item.Progress.Duration),
+		})
+	}
+	return plays
+}
+
+func (h *WatchlistHandler) removePlay(r *http.Request, item *models.WatchlistItem) int {
+	if item.Plays <= 0 {
+		return 0
+	}
+	userID := middleware.ClaimsFromCtx(r).UserID
+	plays, err := h.DB.AddPlays(r.Context(), userID, item.ID, -1)
+	if err != nil {
+		log.Printf("watchlist: remove play for %s: %v", item.ID, err)
+		return item.Plays
+	}
+	item.Plays = plays
+
+	if item.Type == "movie" {
+		if _, err := h.DB.DeleteRecentEvents(r.Context(), userID, item.ID, models.EventMovieWatch, 1); err != nil {
+			log.Printf("watchlist: drop watch event for %s: %v", item.ID, err)
+		}
+	}
+	return plays
+}
+
+func playDelta(prev, next models.WatchlistStatus) int {
+	switch {
+	case next == models.StatusWatched && prev != models.StatusWatched:
+		return 1
+	case prev == models.StatusWatched && next != models.StatusWatched:
+		return -1
+	}
+	return 0
+}
+
+func (h *WatchlistHandler) applyStatusPlay(r *http.Request, item *models.WatchlistItem, prev models.WatchlistStatus) {
+	switch playDelta(prev, item.Status) {
+	case 1:
+		h.addPlay(r, item)
+	case -1:
+		h.removePlay(r, item)
+	}
 }
 
 func detailLink(mediaType, imdbID string) string {
@@ -282,10 +347,6 @@ func (h *WatchlistHandler) UpdateProgress(w http.ResponseWriter, r *http.Request
 }
 
 func (h *WatchlistHandler) trackProgress(r *http.Request, item *models.WatchlistItem, prevStatus models.WatchlistStatus, prevEpisodes int, req models.UpdateProgressRequest) {
-	if h.Tracker == nil {
-		return
-	}
-
 	if item.Status != prevStatus {
 		h.track(r, models.UserEvent{
 			EventType: models.EventStatusChange,
@@ -295,20 +356,15 @@ func (h *WatchlistHandler) trackProgress(r *http.Request, item *models.Watchlist
 			Title:     item.Title,
 			Metadata:  map[string]any{"from": string(prevStatus), "to": string(item.Status)},
 		})
+		h.applyStatusPlay(r, item, prevStatus)
 	}
 
-	if item.Type == "movie" && item.Status == models.StatusWatched && prevStatus != models.StatusWatched {
-		h.track(r, models.UserEvent{
-			EventType:      models.EventMovieWatch,
-			ItemID:         item.ID,
-			MediaType:      item.Type,
-			ImdbID:         item.ImdbID,
-			Title:          item.Title,
-			RuntimeMinutes: tracking.MinutesFromSeconds(item.Progress.Duration),
-		})
+	if item.Type != "tv" {
+		return
 	}
 
-	if item.Type == "tv" && item.EpisodesWatched > prevEpisodes {
+	switch {
+	case item.EpisodesWatched > prevEpisodes:
 		delta := item.EpisodesWatched - prevEpisodes
 		runtime := 0
 		if delta == 1 && req.Progress != nil {
@@ -325,6 +381,13 @@ func (h *WatchlistHandler) trackProgress(r *http.Request, item *models.Watchlist
 			RuntimeMinutes: runtime,
 			Metadata:       map[string]any{"delta": delta},
 		})
+
+	case item.EpisodesWatched < prevEpisodes:
+		userID := middleware.ClaimsFromCtx(r).UserID
+		n := prevEpisodes - item.EpisodesWatched
+		if _, err := h.DB.DeleteRecentEvents(r.Context(), userID, item.ID, models.EventEpisodeWatch, n); err != nil {
+			log.Printf("watchlist: drop episode events for %s: %v", item.ID, err)
+		}
 	}
 }
 
@@ -391,20 +454,96 @@ func (h *WatchlistHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) 
 			Title:     item.Title,
 			Metadata:  map[string]any{"from": string(prevStatus), "to": string(req.Status)},
 		})
-
-		if item.Type == "movie" && req.Status == models.StatusWatched && prevStatus != models.StatusWatched {
-			h.track(r, models.UserEvent{
-				EventType:      models.EventMovieWatch,
-				ItemID:         item.ID,
-				MediaType:      item.Type,
-				ImdbID:         item.ImdbID,
-				Title:          item.Title,
-				RuntimeMinutes: tracking.MinutesFromSeconds(item.Progress.Duration),
-			})
-		}
+		h.applyStatusPlay(r, item, prevStatus)
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// AddPlay godoc
+// @Summary     Log another play
+// @Description Records one more completed watch of an item and marks it watched. This is the
+// @Description "watch it again" half of the checkbox prompt.
+// @Tags        watchlist
+// @Produce     json
+// @Param       id path string true "Item ID"
+// @Success     200 {object} models.PlaysResponse
+// @Failure     401 {object} map[string]string
+// @Failure     404 {object} map[string]string
+// @Security    BearerAuth
+// @Router      /watchlist/{id}/plays [post]
+func (h *WatchlistHandler) AddPlay(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.ClaimsFromCtx(r)
+
+	item, err := h.DB.GetItem(r.Context(), claims.UserID, chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "item not found", http.StatusNotFound)
+		return
+	}
+
+	if item.Status != models.StatusWatched {
+		prev := item.Status
+		item.Status = models.StatusWatched
+		item.LastUpdated = time.Now().UnixMilli()
+		if _, err := h.DB.UpsertItem(r.Context(), claims.UserID, item); err != nil {
+			jsonError(w, "could not log play", http.StatusInternalServerError)
+			return
+		}
+		h.track(r, models.UserEvent{
+			EventType: models.EventStatusChange,
+			ItemID:    item.ID,
+			MediaType: item.Type,
+			ImdbID:    item.ImdbID,
+			Title:     item.Title,
+			Metadata:  map[string]any{"from": string(prev), "to": string(item.Status)},
+		})
+	}
+
+	jsonOK(w, models.PlaysResponse{Plays: h.addPlay(r, item), Status: item.Status})
+}
+
+// RemovePlay godoc
+// @Summary     Undo the newest play
+// @Description Drops the most recent play and the watch time that came with it. The item goes
+// @Description back to plan_to_watch once no plays are left.
+// @Tags        watchlist
+// @Produce     json
+// @Param       id path string true "Item ID"
+// @Success     200 {object} models.PlaysResponse
+// @Failure     401 {object} map[string]string
+// @Failure     404 {object} map[string]string
+// @Security    BearerAuth
+// @Router      /watchlist/{id}/plays [delete]
+func (h *WatchlistHandler) RemovePlay(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.ClaimsFromCtx(r)
+
+	item, err := h.DB.GetItem(r.Context(), claims.UserID, chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "item not found", http.StatusNotFound)
+		return
+	}
+
+	plays := h.removePlay(r, item)
+
+	if plays == 0 && item.Status == models.StatusWatched {
+		prev := item.Status
+		item.Status = models.StatusPlanToWatch
+		item.LastUpdated = time.Now().UnixMilli()
+		if _, err := h.DB.UpsertItem(r.Context(), claims.UserID, item); err != nil {
+			jsonError(w, "could not undo play", http.StatusInternalServerError)
+			return
+		}
+		h.track(r, models.UserEvent{
+			EventType: models.EventStatusChange,
+			ItemID:    item.ID,
+			MediaType: item.Type,
+			ImdbID:    item.ImdbID,
+			Title:     item.Title,
+			Metadata:  map[string]any{"from": string(prev), "to": string(item.Status)},
+		})
+	}
+
+	jsonOK(w, models.PlaysResponse{Plays: plays, Status: item.Status})
 }
 
 // Delete godoc

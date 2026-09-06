@@ -51,6 +51,24 @@ func (d *DB) RecordEvent(ctx context.Context, ev models.UserEvent) (int64, error
 	return id, err
 }
 
+func (d *DB) DeleteRecentEvents(ctx context.Context, userID, itemID, eventType string, n int) (int, error) {
+	if n <= 0 || itemID == "" {
+		return 0, nil
+	}
+	tag, err := d.Pool.Exec(ctx, `
+		DELETE FROM user_events WHERE id IN (
+			SELECT id FROM user_events
+			WHERE user_id = $1 AND item_id = $2 AND event_type = $3
+			ORDER BY occurred_at DESC, id DESC
+			LIMIT $4
+		)
+	`, userID, itemID, eventType, n)
+	if err != nil {
+		return 0, err
+	}
+	return int(tag.RowsAffected()), nil
+}
+
 // EnrichEvent backfills genre/year/runtime on an existing event.
 func (d *DB) EnrichEvent(ctx context.Context, id int64, genres []string, releaseYear, runtimeMinutes int) error {
 	_, err := d.Pool.Exec(ctx, `
@@ -143,7 +161,7 @@ func (d *DB) GetEventTotals(ctx context.Context, userID string, start, end time.
 		  COALESCE(SUM(runtime_minutes) FILTER (WHERE `+watchEventFilter+`), 0),
 		  COUNT(DISTINCT item_id) FILTER (WHERE `+watchEventFilter+`),
 		  COUNT(DISTINCT item_id) FILTER (WHERE event_type = 'episode_watch' AND media_type = 'tv'),
-		  COUNT(*) FILTER (WHERE event_type = 'status_change' AND media_type = 'tv' AND metadata->>'to' = 'watched'),
+		  COUNT(DISTINCT item_id) FILTER (WHERE event_type = 'status_change' AND media_type = 'tv' AND metadata->>'to' = 'watched'),
 		  COALESCE((EXTRACT(EPOCH FROM MIN(occurred_at)) * 1000)::BIGINT, 0),
 		  COALESCE((EXTRACT(EPOCH FROM MAX(occurred_at)) * 1000)::BIGINT, 0)
 		FROM user_events

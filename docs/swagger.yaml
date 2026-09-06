@@ -343,6 +343,13 @@ definitions:
       total_pages:
         type: integer
     type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.PlaysResponse:
+    properties:
+      plays:
+        type: integer
+      status:
+        $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.WatchlistStatus'
+    type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.Popularities:
     additionalProperties: {}
     type: object
@@ -631,6 +638,11 @@ definitions:
           0.
         type: integer
       last_updated:
+        type: integer
+      plays:
+        description: |-
+          Plays is how many times the user has finished this. Server-owned: PUT ignores it,
+          the status and /plays endpoints are what move it.
         type: integer
       poster_path:
         type: string
@@ -1639,6 +1651,75 @@ paths:
       security:
       - BearerAuth: []
       summary: Add or update watchlist item
+      tags:
+      - watchlist
+  /watchlist/{id}/plays:
+    delete:
+      description: |-
+        Drops the most recent play and the watch time that came with it. The item goes
+        back to plan_to_watch once no plays are left.
+      parameters:
+      - description: Item ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.PlaysResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Undo the newest play
+      tags:
+      - watchlist
+    post:
+      description: |-
+        Records one more completed watch of an item and marks it watched. This is the
+        "watch it again" half of the checkbox prompt.
+      parameters:
+      - description: Item ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.PlaysResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Log another play
       tags:
       - watchlist
   /watchlist/{id}/progress:

@@ -78,6 +78,8 @@ func NewRouter(database *db.DB, metaClient *meta.Client) http.Handler {
 			r.Get("/{id}", wlHandler.GetOne)
 			r.Patch("/{id}/progress", wlHandler.UpdateProgress)
 			r.Patch("/{id}/status", wlHandler.UpdateStatus)
+			r.Post("/{id}/plays", wlHandler.AddPlay)
+			r.Delete("/{id}/plays", wlHandler.RemovePlay)
 			r.Delete("/{id}", wlHandler.Delete)
 			r.Delete("/", wlHandler.BulkDelete)
 		})

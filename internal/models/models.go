@@ -61,7 +61,8 @@ type WatchlistItem struct {
 	EpisodesWatched    int          `json:"episodes_watched,omitempty"`
 	EpisodesTotal      int          `json:"episodes_total,omitempty"`
 	ShowProgress       ShowProgress `json:"show_progress,omitempty"`
-	LastUpdated        int64        `json:"last_updated"`
+	Plays       int   `json:"plays"`
+	LastUpdated int64 `json:"last_updated"`
 }
 
 type UpdateProgressRequest struct {
@@ -76,6 +77,11 @@ type UpdateProgressRequest struct {
 }
 
 type UpdateStatusRequest struct {
+	Status WatchlistStatus `json:"status"`
+}
+
+type PlaysResponse struct {
+	Plays  int             `json:"plays"`
 	Status WatchlistStatus `json:"status"`
 }
 

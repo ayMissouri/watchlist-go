@@ -1360,6 +1360,108 @@
                 }
             }
         },
+        "/watchlist/{id}/plays": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Records one more completed watch of an item and marks it watched. This is the\n\"watch it again\" half of the checkbox prompt.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "watchlist"
+                ],
+                "summary": "Log another play",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Item ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.PlaysResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Drops the most recent play and the watch time that came with it. The item goes\nback to plan_to_watch once no plays are left.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "watchlist"
+                ],
+                "summary": "Undo the newest play",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Item ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.PlaysResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/watchlist/{id}/progress": {
             "patch": {
                 "security": [
@@ -2018,6 +2120,17 @@
                 }
             }
         },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.PlaysResponse": {
+            "type": "object",
+            "properties": {
+                "plays": {
+                    "type": "integer"
+                },
+                "status": {
+                    "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.WatchlistStatus"
+                }
+            }
+        },
         "github_com_ayMissouri_watchlist-go_git_internal_models.Popularities": {
             "type": "object",
             "additionalProperties": {}
@@ -2453,6 +2566,10 @@
                     "type": "integer"
                 },
                 "last_updated": {
+                    "type": "integer"
+                },
+                "plays": {
+                    "description": "Plays is how many times the user has finished this. Server-owned: PUT ignores it,\nthe status and /plays endpoints are what move it.",
                     "type": "integer"
                 },
                 "poster_path": {

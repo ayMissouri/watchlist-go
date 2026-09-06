@@ -111,7 +111,7 @@ func (d *DB) GetWatchlist(ctx context.Context, userID string, q models.Watchlist
 		       progress_watched, progress_duration,
 		       last_season_watched, last_episode_watched,
 		       episodes_watched, episodes_total,
-		       show_progress, last_updated
+		       show_progress, plays, last_updated
 		FROM watchlist_items
 		%s
 		ORDER BY %s %s
@@ -150,7 +150,7 @@ func (d *DB) GetItem(ctx context.Context, userID, itemID string) (*models.Watchl
 		       progress_watched, progress_duration,
 		       last_season_watched, last_episode_watched,
 		       episodes_watched, episodes_total,
-		       show_progress, last_updated
+		       show_progress, plays, last_updated
 		FROM watchlist_items
 		WHERE user_id = $1 AND id = $2
 	`, userID, itemID)
@@ -203,6 +203,16 @@ func (d *DB) UpsertItem(ctx context.Context, userID string, item *models.Watchli
 	return inserted, err
 }
 
+func (d *DB) AddPlays(ctx context.Context, userID, itemID string, delta int) (int, error) {
+	var plays int
+	err := d.Pool.QueryRow(ctx, `
+		UPDATE watchlist_items SET plays = GREATEST(plays + $3, 0)
+		WHERE user_id = $1 AND id = $2
+		RETURNING plays
+	`, userID, itemID, delta).Scan(&plays)
+	return plays, err
+}
+
 func (d *DB) DeleteItem(ctx context.Context, userID, itemID string) error {
 	tag, err := d.Pool.Exec(ctx,
 		`DELETE FROM watchlist_items WHERE user_id = $1 AND id = $2`,
@@ -234,7 +244,7 @@ func scanItem(row rowScanner) (*models.WatchlistItem, error) {
 		&item.Progress.Watched, &item.Progress.Duration,
 		&item.LastSeasonWatched, &item.LastEpisodeWatched,
 		&item.EpisodesWatched, &item.EpisodesTotal,
-		&showProgressJSON, &item.LastUpdated,
+		&showProgressJSON, &item.Plays, &item.LastUpdated,
 	)
 	if err != nil {
 		return nil, err
