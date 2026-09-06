@@ -14,6 +14,8 @@ import (
 
 const watchEventFilter = `event_type IN ('movie_watch','episode_watch')`
 
+const episodeDelta = `COALESCE(NULLIF(metadata->>'delta', '')::int, 1)`
+
 // RecordEvent appends a single event and returns its id.
 func (d *DB) RecordEvent(ctx context.Context, ev models.UserEvent) (int64, error) {
 	metaJSON := []byte("{}")
@@ -67,6 +69,28 @@ func (d *DB) DeleteRecentEvents(ctx context.Context, userID, itemID, eventType s
 		return 0, err
 	}
 	return int(tag.RowsAffected()), nil
+}
+
+func (d *DB) RemoveEpisodeWatches(ctx context.Context, userID, itemID string, n int) error {
+	if n <= 0 || itemID == "" {
+		return nil
+	}
+	_, err := d.Pool.Exec(ctx, `
+		WITH touched AS (
+			SELECT id, d, cum FROM (
+				SELECT id, `+episodeDelta+` AS d,
+				       SUM(`+episodeDelta+`) OVER (ORDER BY occurred_at DESC, id DESC) AS cum
+				FROM user_events
+				WHERE user_id = $1 AND item_id = $2 AND event_type = 'episode_watch'
+			) r WHERE cum - d < $3
+		), gone AS (
+			DELETE FROM user_events WHERE id IN (SELECT id FROM touched WHERE cum <= $3)
+		)
+		UPDATE user_events u
+		SET metadata = jsonb_set(u.metadata, '{delta}', to_jsonb(t.cum - $3))
+		FROM touched t WHERE u.id = t.id AND t.cum > $3
+	`, userID, itemID, n)
+	return err
 }
 
 // EnrichEvent backfills genre/year/runtime on an existing event.
@@ -154,11 +178,11 @@ func (d *DB) GetEventTotals(ctx context.Context, userID string, start, end time.
 		SELECT
 		  COUNT(*),
 		  COUNT(*) FILTER (WHERE event_type = 'movie_watch'),
-		  COUNT(*) FILTER (WHERE event_type = 'episode_watch'),
+		  COALESCE(SUM(`+episodeDelta+`) FILTER (WHERE event_type = 'episode_watch'), 0),
 		  COUNT(*) FILTER (WHERE event_type = 'add'),
 		  COUNT(*) FILTER (WHERE event_type = 'search'),
 		  COUNT(*) FILTER (WHERE event_type = 'login'),
-		  COALESCE(SUM(runtime_minutes) FILTER (WHERE `+watchEventFilter+`), 0),
+		  COALESCE(SUM(runtime_minutes * CASE WHEN event_type = 'episode_watch' THEN `+episodeDelta+` ELSE 1 END) FILTER (WHERE `+watchEventFilter+`), 0),
 		  COUNT(DISTINCT item_id) FILTER (WHERE `+watchEventFilter+`),
 		  COUNT(DISTINCT item_id) FILTER (WHERE event_type = 'episode_watch' AND media_type = 'tv'),
 		  COUNT(DISTINCT item_id) FILTER (WHERE event_type = 'status_change' AND media_type = 'tv' AND metadata->>'to' = 'watched'),

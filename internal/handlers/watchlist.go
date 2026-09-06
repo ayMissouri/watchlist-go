@@ -385,7 +385,7 @@ func (h *WatchlistHandler) trackProgress(r *http.Request, item *models.Watchlist
 	case item.EpisodesWatched < prevEpisodes:
 		userID := middleware.ClaimsFromCtx(r).UserID
 		n := prevEpisodes - item.EpisodesWatched
-		if _, err := h.DB.DeleteRecentEvents(r.Context(), userID, item.ID, models.EventEpisodeWatch, n); err != nil {
+		if err := h.DB.RemoveEpisodeWatches(r.Context(), userID, item.ID, n); err != nil {
 			log.Printf("watchlist: drop episode events for %s: %v", item.ID, err)
 		}
 	}
