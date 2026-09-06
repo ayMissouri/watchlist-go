@@ -749,8 +749,8 @@ info:
 paths:
   /auth/callback:
     get:
-      description: Where Discord sends the user back. Checks the CSRF state, issues
-        a JWT, and bounces them to the frontend with it.
+      description: Handles the Discord redirect, issues a JWT, and redirects to the
+        frontend
       parameters:
       - description: OAuth2 code from Discord
         in: query
@@ -791,7 +791,7 @@ paths:
       - auth
   /auth/me:
     get:
-      description: Returns the profile of whoever the token belongs to.
+      description: Returns the authenticated users profile
       produces:
       - application/json
       responses:
@@ -819,10 +819,10 @@ paths:
     patch:
       consumes:
       - application/json
-      description: Patches the current user's profile. Leave a field out and it stays
-        as-is. Send an empty display name to clear it, in which case the username
-        shows instead. `settings` is a free-form object (subtitle styling, that kind
-        of thing) and gets shallow-merged into whatever is already stored.
+      description: Updates the authenticated user's profile. Omitted fields are left
+        untouched. An empty display name clears it, falling back to the username.
+        Settings is a free-form object (subtitle styling etc.) shallow-merged into
+        the stored settings.
       parameters:
       - description: Profile fields to update
         in: body
