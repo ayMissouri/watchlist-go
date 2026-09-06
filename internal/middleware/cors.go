@@ -6,14 +6,25 @@ import (
 )
 
 func CORS(next http.Handler) http.Handler {
-	origin := os.Getenv("FRONTEND_URL")
+	frontend := os.Getenv("FRONTEND_URL")
 	// default to localhost if FRONTEND_URL is not set
-	if origin == "" {
-		origin = "http://localhost:3000"
+	if frontend == "" {
+		frontend = "http://localhost:3000"
+	}
+
+	allowed := map[string]bool{
+		frontend:                 true,
+		"https://awatch.fun":     true,
+		"https://www.awatch.fun": true,
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
+		if !allowed[origin] {
+			origin = frontend
+		}
 		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Vary", "Origin")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
