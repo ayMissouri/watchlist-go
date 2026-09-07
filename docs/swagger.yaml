@@ -249,7 +249,6 @@ definitions:
       country:
         type: string
       credits:
-        description: Cast with TMDB person ids, for /meta/person/{id}
         items:
           $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Credit'
         type: array
@@ -485,7 +484,6 @@ definitions:
       country:
         type: string
       credits:
-        description: Cast with TMDB person ids, for /meta/person/{id}
         items:
           $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Credit'
         type: array

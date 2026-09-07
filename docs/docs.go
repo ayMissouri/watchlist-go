@@ -2097,7 +2097,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "credits": {
-                    "description": "Cast with TMDB person ids, for /meta/person/{id}",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Credit"
@@ -2455,7 +2454,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "credits": {
-                    "description": "Cast with TMDB person ids, for /meta/person/{id}",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Credit"
