@@ -168,6 +168,31 @@ type Episode struct {
 	ImdbRating string `json:"imdbRating,omitempty"`
 }
 
+type Credit struct {
+	ID        int    `json:"id"`
+	Name      string `json:"name"`
+	Character string `json:"character,omitempty"`
+	Photo     string `json:"photo,omitempty"`
+}
+
+type Person struct {
+	ID           int            `json:"id"`
+	ImdbID       string         `json:"imdb_id,omitempty"`
+	Name         string         `json:"name"`
+	Biography    string         `json:"biography,omitempty"`
+	Birthday     string         `json:"birthday,omitempty"`
+	Deathday     string         `json:"deathday,omitempty"`
+	PlaceOfBirth string         `json:"place_of_birth,omitempty"`
+	KnownFor     string         `json:"known_for,omitempty"`
+	Photo        string         `json:"photo,omitempty"`
+	Credits      []PersonCredit `json:"credits"`
+}
+
+type PersonCredit struct {
+	DiscoverItem
+	Character string `json:"character,omitempty"`
+}
+
 type MovieDetail struct {
 	ID             string          `json:"id"`
 	ImdbID         string          `json:"imdb_id"`
@@ -185,6 +210,7 @@ type MovieDetail struct {
 	Genre          []string        `json:"genre,omitempty"`
 	Genres         []string        `json:"genres,omitempty"`
 	Cast           []string        `json:"cast,omitempty"`
+	Credits        []Credit        `json:"credits,omitempty"`
 	Director       []string        `json:"director,omitempty"`
 	Writer         []string        `json:"writer,omitempty"`
 	Awards         string          `json:"awards,omitempty"`

@@ -2,46 +2,39 @@ package handlers
 
 import "strconv"
 
-// movieGenres are the genre slugs for the movie catalogs.
-var movieGenres = map[string]bool{
-	"action": true, "adventure": true, "animation": true, "biography": true,
-	"comedy": true, "crime": true, "documentary": true, "drama": true,
-	"family": true, "fantasy": true, "history": true, "horror": true,
-	"mystery": true, "romance": true, "sci-fi": true, "sport": true,
-	"thriller": true, "war": true, "western": true,
+var movieGenres = map[string]int{
+	"action": 28, "adventure": 12, "animation": 16, "comedy": 35, "crime": 80,
+	"documentary": 99, "drama": 18, "family": 10751, "fantasy": 14, "history": 36,
+	"horror": 27, "mystery": 9648, "romance": 10749, "sci-fi": 878, "thriller": 53,
+	"war": 10752, "western": 37,
 }
 
-// seriesExtraGenres are the TV genres for series on top of the movie genres.
-var seriesExtraGenres = map[string]bool{
-	"reality-tv": true, "talk-show": true, "game-show": true,
+var seriesGenres = map[string]int{
+	"action": 10759, "adventure": 10759, "animation": 16, "comedy": 35, "crime": 80,
+	"documentary": 99, "drama": 18, "family": 10751, "fantasy": 10765, "mystery": 9648,
+	"sci-fi": 10765, "war": 10768, "western": 37, "reality-tv": 10764, "talk-show": 10767,
 }
 
-func validGenre(mediaType, genre string) bool {
-	if movieGenres[genre] {
-		return true
+func genreID(mediaType, genre string) (int, bool) {
+	if mediaType == "series" {
+		id, ok := seriesGenres[genre]
+		return id, ok
 	}
-	return mediaType == "series" && seriesExtraGenres[genre]
+	id, ok := movieGenres[genre]
+	return id, ok
 }
 
-// streamingProviders maps a friendly provider name to the catalog short code.
-var streamingProviders = map[string]string{
-	"netflix": "nfx",
-	"hbomax":  "hbm",
-	"disney":  "dnp",
-	"prime":   "amp",
-	"appletv": "atp",
+var streamingProviders = map[string]int{
+	"netflix": 8, "nfx": 8,
+	"prime": 9, "amp": 9,
+	"disney": 337, "dnp": 337,
+	"appletv": 350, "atp": 350,
+	"hbomax": 1899, "hbm": 1899,
 }
 
-func providerCode(provider string) (string, bool) {
-	if code, ok := streamingProviders[provider]; ok {
-		return code, true
-	}
-	for _, code := range streamingProviders {
-		if provider == code {
-			return code, true
-		}
-	}
-	return "", false
+func providerID(provider string) (int, bool) {
+	id, ok := streamingProviders[provider]
+	return id, ok
 }
 
 // validYear reports whether year is a plausible 4-digit release year.

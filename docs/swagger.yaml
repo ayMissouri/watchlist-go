@@ -81,6 +81,17 @@ definitions:
       title:
         type: string
     type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.Credit:
+    properties:
+      character:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      photo:
+        type: string
+    type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverAllResponse:
     properties:
       popular_movies:
@@ -237,6 +248,11 @@ definitions:
         type: array
       country:
         type: string
+      credits:
+        description: Cast with TMDB person ids, for /meta/person/{id}
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Credit'
+        type: array
       description:
         type: string
       director:
@@ -343,6 +359,50 @@ definitions:
       total_pages:
         type: integer
     type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.Person:
+    properties:
+      biography:
+        type: string
+      birthday:
+        type: string
+      credits:
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.PersonCredit'
+        type: array
+      deathday:
+        type: string
+      id:
+        type: integer
+      imdb_id:
+        type: string
+      known_for:
+        type: string
+      name:
+        type: string
+      photo:
+        type: string
+      place_of_birth:
+        type: string
+    type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.PersonCredit:
+    properties:
+      background:
+        type: string
+      character:
+        type: string
+      id:
+        type: string
+      imdb_rating:
+        type: string
+      poster:
+        type: string
+      title:
+        type: string
+      type:
+        type: string
+      year:
+        type: string
+    type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.PlaysResponse:
     properties:
       plays:
@@ -424,6 +484,11 @@ definitions:
         type: array
       country:
         type: string
+      credits:
+        description: Cast with TMDB person ids, for /meta/person/{id}
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Credit'
+        type: array
       description:
         type: string
       director:
@@ -945,8 +1010,11 @@ paths:
         in: query
         name: sort
         type: string
-      - description: 'Genre filter, e.g. action, sci-fi (series also: reality-tv,
-          talk-show, game-show)'
+      - description: 'Genre filter. Movies: action, adventure, animation, comedy,
+          crime, documentary, drama, family, fantasy, history, horror, mystery, romance,
+          sci-fi, thriller, war, western. Series: action, adventure, animation, comedy,
+          crime, documentary, drama, family, fantasy, mystery, sci-fi, war, western,
+          reality-tv, talk-show'
         in: query
         name: genre
         type: string
@@ -1206,6 +1274,52 @@ paths:
       summary: Join a lobby and follow its state
       tags:
       - lobbies
+  /meta/{type}/{id}/recommendations:
+    get:
+      description: What TMDB recommends alongside this movie or series, in the same
+        shape as a discover catalog. Cached for a day.
+      parameters:
+      - description: Media type
+        enum:
+        - movie
+        - series
+        in: path
+        name: type
+        required: true
+        type: string
+      - description: ID (e.g. tt0111161)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Bad Gateway
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get recommendations for a title
+      tags:
+      - meta
   /meta/movie/{id}:
     get:
       description: Everything we know about a movie. Cached for a day.
@@ -1235,6 +1349,39 @@ paths:
               type: string
             type: object
       summary: Get movie details
+      tags:
+      - meta
+  /meta/person/{id}:
+    get:
+      description: Bio and the most popular acting credits of a cast member. Ids come
+        from `credits` on a movie or series detail; each credit is keyed like a discover
+        item so it links to a detail page. Cached for a day.
+      parameters:
+      - description: TMDB person id (e.g. 2524)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Person'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Bad Gateway
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get person details
       tags:
       - meta
   /meta/series/{id}:

@@ -301,7 +301,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Genre filter, e.g. action, sci-fi (series also: reality-tv, talk-show, game-show)",
+                        "description": "Genre filter. Movies: action, adventure, animation, comedy, crime, documentary, drama, family, fantasy, history, horror, mystery, romance, sci-fi, thriller, war, western. Series: action, adventure, animation, comedy, crime, documentary, drama, family, fantasy, mystery, sci-fi, war, western, reality-tv, talk-show",
                         "name": "genre",
                         "in": "query"
                     },
@@ -734,6 +734,53 @@ const docTemplate = `{
                 }
             }
         },
+        "/meta/person/{id}": {
+            "get": {
+                "description": "Bio and the most popular acting credits of a cast member. Ids come from ` + "`" + `credits` + "`" + ` on a movie or series detail; each credit is keyed like a discover item so it links to a detail page. Cached for a day.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "meta"
+                ],
+                "summary": "Get person details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "TMDB person id (e.g. 2524)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Person"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/meta/series/{id}": {
             "get": {
                 "description": "Everything we know about a series, episodes included (they're in ` + "`" + `videos` + "`" + `). Cached for a day.",
@@ -758,6 +805,73 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.SeriesDetail"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/meta/{type}/{id}/recommendations": {
+            "get": {
+                "description": "What TMDB recommends alongside this movie or series, in the same shape as a discover catalog. Cached for a day.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "meta"
+                ],
+                "summary": "Get recommendations for a title",
+                "parameters": [
+                    {
+                        "enum": [
+                            "movie",
+                            "series"
+                        ],
+                        "type": "string",
+                        "description": "Media type",
+                        "name": "type",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID (e.g. tt0111161)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "404": {
@@ -1726,6 +1840,23 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.Credit": {
+            "type": "object",
+            "properties": {
+                "character": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "photo": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_ayMissouri_watchlist-go_git_internal_models.DiscoverAllResponse": {
             "type": "object",
             "properties": {
@@ -1965,6 +2096,13 @@ const docTemplate = `{
                 "country": {
                     "type": "string"
                 },
+                "credits": {
+                    "description": "Cast with TMDB person ids, for /meta/person/{id}",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Credit"
+                    }
+                },
                 "description": {
                     "type": "string"
                 },
@@ -2126,6 +2264,73 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.Person": {
+            "type": "object",
+            "properties": {
+                "biography": {
+                    "type": "string"
+                },
+                "birthday": {
+                    "type": "string"
+                },
+                "credits": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.PersonCredit"
+                    }
+                },
+                "deathday": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "imdb_id": {
+                    "type": "string"
+                },
+                "known_for": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "photo": {
+                    "type": "string"
+                },
+                "place_of_birth": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.PersonCredit": {
+            "type": "object",
+            "properties": {
+                "background": {
+                    "type": "string"
+                },
+                "character": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "imdb_rating": {
+                    "type": "string"
+                },
+                "poster": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "year": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_ayMissouri_watchlist-go_git_internal_models.PlaysResponse": {
             "type": "object",
             "properties": {
@@ -2248,6 +2453,13 @@ const docTemplate = `{
                 },
                 "country": {
                     "type": "string"
+                },
+                "credits": {
+                    "description": "Cast with TMDB person ids, for /meta/person/{id}",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Credit"
+                    }
                 },
                 "description": {
                     "type": "string"

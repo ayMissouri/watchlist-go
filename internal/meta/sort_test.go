@@ -51,8 +51,8 @@ func TestMergeAndWeight_NewerFirst(t *testing.T) {
 
 func TestMergeAndWeight_NoYear_SinksToBottom(t *testing.T) {
 	items := []models.DiscoverItem{
-		{ID: "tt1", Title: "No Year",   Year: ""},
-		{ID: "tt2", Title: "Has Year",  Year: "2020"},
+		{ID: "tt1", Title: "No Year", Year: ""},
+		{ID: "tt2", Title: "Has Year", Year: "2020"},
 	}
 
 	result := MergeAndWeight(items, nil)

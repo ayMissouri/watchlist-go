@@ -20,12 +20,6 @@ type DiscoverHandler struct {
 	Tracker *tracking.Service
 }
 
-// catalogSort maps the public sort values to the catalog names.
-var catalogSort = map[string]string{
-	"popular":   "top",
-	"top_rated": "imdbRating",
-}
-
 // Discover godoc
 // @Summary     Discover movies or shows
 // @Description Returns one catalog. Use `sort` (optionally with `genre`) for popular/top-rated, `year` for a single release year, or `provider` for a streaming service. If you send more than one, `provider` wins over `year`, which wins over `sort`. Cached for an hour.
@@ -33,7 +27,7 @@ var catalogSort = map[string]string{
 // @Produce     json
 // @Param       type     query string true  "Media type" Enums(movie, series)
 // @Param       sort     query string false "Sort order (default popular)" Enums(popular, top_rated)
-// @Param       genre    query string false "Genre filter, e.g. action, sci-fi (series also: reality-tv, talk-show, game-show)"
+// @Param       genre    query string false "Genre filter. Movies: action, adventure, animation, comedy, crime, documentary, drama, family, fantasy, history, horror, mystery, romance, sci-fi, thriller, war, western. Series: action, adventure, animation, comedy, crime, documentary, drama, family, fantasy, mystery, sci-fi, war, western, reality-tv, talk-show"
 // @Param       year     query string false "Release year, e.g. 2025 (overrides sort)"
 // @Param       provider query string false "Streaming provider (overrides sort and year)" Enums(netflix, hbomax, disney, prime, appletv)
 // @Success     200 {object} models.DiscoverResponse
@@ -60,12 +54,12 @@ func (h *DiscoverHandler) Discover(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case provider != "":
-		code, ok := providerCode(provider)
+		id, ok := providerID(provider)
 		if !ok {
 			jsonError(w, "unknown provider", http.StatusBadRequest)
 			return
 		}
-		items, err = h.Meta.ProviderCatalog(r.Context(), mediaType, code)
+		items, err = h.Meta.ProviderCatalog(r.Context(), mediaType, id)
 
 	case year != "":
 		if !validYear(year) {
@@ -78,16 +72,19 @@ func (h *DiscoverHandler) Discover(w http.ResponseWriter, r *http.Request) {
 		if sort == "" {
 			sort = "popular"
 		}
-		catalog, ok := catalogSort[sort]
-		if !ok {
+		if sort != "popular" && sort != "top_rated" {
 			jsonError(w, `sort must be "popular" or "top_rated"`, http.StatusBadRequest)
 			return
 		}
-		if genre != "" && !validGenre(mediaType, genre) {
-			jsonError(w, "unknown genre", http.StatusBadRequest)
-			return
+		var gid int
+		if genre != "" {
+			var ok bool
+			if gid, ok = genreID(mediaType, genre); !ok {
+				jsonError(w, "unknown genre", http.StatusBadRequest)
+				return
+			}
 		}
-		items, err = h.Meta.Catalog(r.Context(), mediaType, catalog, genre)
+		items, err = h.Meta.Catalog(r.Context(), mediaType, sort, gid)
 	}
 
 	if err != nil {
@@ -201,6 +198,60 @@ func (h *DiscoverHandler) SeriesDetail(w http.ResponseWriter, r *http.Request) {
 
 	h.trackView(r, id, "tv", detail.Name)
 	jsonOK(w, detail)
+}
+
+// Recommendations godoc
+// @Summary     Get recommendations for a title
+// @Description What TMDB recommends alongside this movie or series, in the same shape as a discover catalog. Cached for a day.
+// @Tags        meta
+// @Produce     json
+// @Param       type path     string true "Media type" Enums(movie, series)
+// @Param       id   path     string true "ID (e.g. tt0111161)"
+// @Success     200 {object} models.DiscoverResponse
+// @Failure     400 {object} map[string]string
+// @Failure     404 {object} map[string]string
+// @Failure     502 {object} map[string]string
+// @Router      /meta/{type}/{id}/recommendations [get]
+func (h *DiscoverHandler) Recommendations(w http.ResponseWriter, r *http.Request) {
+	mediaType := chi.URLParam(r, "type")
+	if mediaType != "movie" && mediaType != "series" {
+		jsonError(w, `type must be "movie" or "series"`, http.StatusBadRequest)
+		return
+	}
+
+	items, err := h.Meta.Recommendations(r.Context(), mediaType, chi.URLParam(r, "id"))
+	if err != nil {
+		if errors.Is(err, meta.ErrNotFound) {
+			jsonError(w, "title not found", http.StatusNotFound)
+			return
+		}
+		jsonError(w, "could not fetch recommendations", http.StatusBadGateway)
+		return
+	}
+	jsonOK(w, models.DiscoverResponse{Items: items})
+}
+
+// PersonDetail godoc
+// @Summary     Get person details
+// @Description Bio and the most popular acting credits of a cast member. Ids come from `credits` on a movie or series detail; each credit is keyed like a discover item so it links to a detail page. Cached for a day.
+// @Tags        meta
+// @Produce     json
+// @Param       id  path     string true "TMDB person id (e.g. 2524)"
+// @Success     200 {object} models.Person
+// @Failure     404 {object} map[string]string
+// @Failure     502 {object} map[string]string
+// @Router      /meta/person/{id} [get]
+func (h *DiscoverHandler) PersonDetail(w http.ResponseWriter, r *http.Request) {
+	person, err := h.Meta.PersonDetail(r.Context(), chi.URLParam(r, "id"))
+	if err != nil {
+		if errors.Is(err, meta.ErrNotFound) {
+			jsonError(w, "person not found", http.StatusNotFound)
+			return
+		}
+		jsonError(w, "could not fetch person details", http.StatusBadGateway)
+		return
+	}
+	jsonOK(w, person)
 }
 
 // Search godoc

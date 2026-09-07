@@ -133,6 +133,8 @@ func NewRouter(database *db.DB, metaClient *meta.Client) http.Handler {
 
 			r.Get("/movie/{id}", discoverHandler.MovieDetail)
 			r.Get("/series/{id}", discoverHandler.SeriesDetail)
+			r.Get("/person/{id}", discoverHandler.PersonDetail)
+			r.Get("/{type}/{id}/recommendations", discoverHandler.Recommendations)
 		})
 
 		r.With(middleware.OptionalAuth).Get("/search", discoverHandler.Search)
