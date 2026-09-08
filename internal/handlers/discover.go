@@ -1,11 +1,12 @@
 package handlers
 
 import (
-	"net/http"
-	"sync"
+	"cmp"
 	"context"
 	"errors"
+	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/go-chi/chi/v5"
 
@@ -127,10 +128,10 @@ func (h *DiscoverHandler) DiscoverAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	wg.Add(4)
-	go fetch(h.Meta.PopularMovies,  &popularMovies)
-	go fetch(h.Meta.PopularShows,   &popularShows)
+	go fetch(h.Meta.PopularMovies, &popularMovies)
+	go fetch(h.Meta.PopularShows, &popularShows)
 	go fetch(h.Meta.TopRatedMovies, &topRatedMovies)
-	go fetch(h.Meta.TopRatedShows,  &topRatedShows)
+	go fetch(h.Meta.TopRatedShows, &topRatedShows)
 	wg.Wait()
 
 	if fetchErr != nil {
@@ -151,7 +152,7 @@ func (h *DiscoverHandler) DiscoverAll(w http.ResponseWriter, r *http.Request) {
 // @Description Everything we know about a movie. Cached for a day.
 // @Tags        meta
 // @Produce     json
-// @Param       id  path     string true "ID (e.g. tt0111161)"
+// @Param       id  path     string true "TMDB id (e.g. 278). IMDb ids like tt0111161 still work."
 // @Success     200 {object} models.MovieDetail
 // @Failure     404 {object} map[string]string
 // @Failure     502 {object} map[string]string
@@ -169,7 +170,7 @@ func (h *DiscoverHandler) MovieDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.trackView(r, id, "movie", detail.Name)
+	h.trackView(r, id, detail.ImdbID, "movie", detail.Name)
 	jsonOK(w, detail)
 }
 
@@ -178,7 +179,7 @@ func (h *DiscoverHandler) MovieDetail(w http.ResponseWriter, r *http.Request) {
 // @Description Everything we know about a series, episodes included (they're in `videos`). Cached for a day.
 // @Tags        meta
 // @Produce     json
-// @Param       id  path     string true "ID (e.g. tt3322312)"
+// @Param       id  path     string true "TMDB id (e.g. 1396). IMDb ids like tt0903747 still work."
 // @Success     200 {object} models.SeriesDetail
 // @Failure     404 {object} map[string]string
 // @Failure     502 {object} map[string]string
@@ -196,7 +197,7 @@ func (h *DiscoverHandler) SeriesDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.trackView(r, id, "tv", detail.Name)
+	h.trackView(r, id, detail.ImdbID, "tv", detail.Name)
 	jsonOK(w, detail)
 }
 
@@ -206,7 +207,7 @@ func (h *DiscoverHandler) SeriesDetail(w http.ResponseWriter, r *http.Request) {
 // @Tags        meta
 // @Produce     json
 // @Param       type path     string true "Media type" Enums(movie, series)
-// @Param       id   path     string true "ID (e.g. tt0111161)"
+// @Param       id   path     string true "TMDB id (e.g. 278). IMDb ids like tt0111161 still work."
 // @Success     200 {object} models.DiscoverResponse
 // @Failure     400 {object} map[string]string
 // @Failure     404 {object} map[string]string
@@ -299,11 +300,11 @@ func (h *DiscoverHandler) Search(w http.ResponseWriter, r *http.Request) {
 
 	default:
 		var (
-			wg      sync.WaitGroup
-			movies  []models.DiscoverItem
-			series  []models.DiscoverItem
+			wg       sync.WaitGroup
+			movies   []models.DiscoverItem
+			series   []models.DiscoverItem
 			fetchErr error
-			errMu   sync.Mutex
+			errMu    sync.Mutex
 		)
 
 		fetch := func(fn func(context.Context, string) ([]models.DiscoverItem, error), dest *[]models.DiscoverItem) {
@@ -319,8 +320,8 @@ func (h *DiscoverHandler) Search(w http.ResponseWriter, r *http.Request) {
 		}
 
 		wg.Add(2)
-		go fetch(h.Meta.SearchMovies,  &movies)
-		go fetch(h.Meta.SearchSeries,  &series)
+		go fetch(h.Meta.SearchMovies, &movies)
+		go fetch(h.Meta.SearchSeries, &series)
 		wg.Wait()
 
 		if fetchErr != nil {
@@ -355,7 +356,7 @@ func (h *DiscoverHandler) trackSearch(r *http.Request, query, mediaType string, 
 }
 
 // trackView records a detail-page view for a logged-in user.
-func (h *DiscoverHandler) trackView(r *http.Request, id, mediaType, title string) {
+func (h *DiscoverHandler) trackView(r *http.Request, id, imdbID, mediaType, title string) {
 	if h.Tracker == nil {
 		return
 	}
@@ -368,7 +369,7 @@ func (h *DiscoverHandler) trackView(r *http.Request, id, mediaType, title string
 		EventType: models.EventView,
 		ItemID:    id,
 		MediaType: mediaType,
-		ImdbID:    id,
+		ImdbID:    cmp.Or(imdbID, id),
 		Title:     title,
 	})
 }

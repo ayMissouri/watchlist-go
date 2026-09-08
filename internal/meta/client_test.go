@@ -81,14 +81,6 @@ func newTestClient(t *testing.T) (*Client, *atomic.Int32) {
 		}
 		reply(`{"results":[{"id":5,"name":"Breaking Bad","first_air_date":"2008-01-20","vote_average":8.9,"vote_count":10}]}`)(w, r)
 	})
-	mux.HandleFunc("GET /movie/{id}/external_ids", func(w http.ResponseWriter, r *http.Request) {
-		if r.PathValue("id") == "1" {
-			reply(`{"imdb_id":"tt1"}`)(w, r)
-			return
-		}
-		reply(`{"imdb_id":null}`)(w, r)
-	})
-	mux.HandleFunc("GET /tv/{id}/external_ids", reply(`{"imdb_id":"tt5"}`))
 	mux.HandleFunc("GET /find/{id}", func(w http.ResponseWriter, r *http.Request) {
 		if r.PathValue("id") == "tt1" {
 			reply(`{"movie_results":[{"id":1}],"tv_results":[]}`)(w, r)
@@ -127,11 +119,11 @@ func TestCatalog(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(items) != 1 {
-		t.Fatalf("got %d items, want 1 (no-IMDb row dropped, page-2 repeat deduped)", len(items))
+	if len(items) != 2 {
+		t.Fatalf("got %d items, want 2 (page-2 repeat deduped)", len(items))
 	}
 	got := items[0]
-	if got.ID != "tt1" || got.Type != "movie" || got.Year != "1994" || got.ImdbRating != "9.3" {
+	if got.ID != "1" || got.Type != "movie" || got.Year != "1994" || got.ImdbRating != "9.3" {
 		t.Errorf("unexpected item %+v", got)
 	}
 	if got.Poster != imageBase+"w500/p.jpg" {
@@ -170,25 +162,28 @@ func TestSeriesCatalogsSkipTalkShows(t *testing.T) {
 
 func TestSearchRetriesRateLimit(t *testing.T) {
 	retryDelay = 0
-	c, _ := newTestClient(t)
+	c, requests := newTestClient(t)
 
 	items, err := c.SearchSeries(t.Context(), "breaking")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(items) != 1 || items[0].ID != "tt5" || items[0].Type != "series" || items[0].Year != "2008" {
+	if len(items) != 1 || items[0].ID != "5" || items[0].Type != "series" || items[0].Year != "2008" {
 		t.Errorf("unexpected items %+v", items)
+	}
+	if n := requests.Load(); n != 2 {
+		t.Errorf("search made %d TMDB requests, want 2 (429 + retry, no per-row lookups)", n)
 	}
 }
 
 func TestSeriesDetail(t *testing.T) {
-	c, _ := newTestClient(t)
+	c, requests := newTestClient(t)
 
 	s, err := c.SeriesDetail(t.Context(), "tt5")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.ID != "tt5" || *s.MoviedbID != 5 || *s.TvdbID != 81189 || s.Type != "series" {
+	if s.ID != "5" || *s.MoviedbID != 5 || *s.TvdbID != 81189 || s.Type != "series" {
 		t.Errorf("ids: %+v", s.MovieDetail)
 	}
 	if s.Year != "2008–2013" || s.Status != "Ended" || s.Runtime != "49 min" {
@@ -202,8 +197,15 @@ func TestSeriesDetail(t *testing.T) {
 	for _, e := range s.Videos {
 		order = append(order, e.ID)
 	}
-	if strings.Join(order, " ") != "tt5:1:1 tt5:1:2 tt5:0:1" {
+	if strings.Join(order, " ") != "5:1:1 5:1:2 5:0:1" {
 		t.Errorf("episode order = %v", order)
+	}
+	before := requests.Load()
+	if _, err := c.SeriesDetail(t.Context(), "5"); err != nil {
+		t.Fatal(err)
+	}
+	if requests.Load() != before {
+		t.Error("numeric id was not served from the same cache entry as the IMDb id")
 	}
 	pilot := s.Videos[0]
 	if pilot.Title != "Pilot" || pilot.Released != "2008-01-20" || pilot.Thumbnail != imageBase+"w300/s1.jpg" || pilot.ImdbRating != "8.2" {
@@ -221,7 +223,7 @@ func TestMovieDetail(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if m.ID != "tt1" || m.ImdbID != "tt1" || *m.BehaviorHints.DefaultVideoID != "tt1" {
+	if m.ID != "1" || m.ImdbID != "tt1" || *m.BehaviorHints.DefaultVideoID != "1" {
 		t.Errorf("ids: %+v", m)
 	}
 	if m.Runtime != "142 min" || m.Year != "1994" || m.Country != "United States of America" {
@@ -252,14 +254,21 @@ func TestMovieDetail(t *testing.T) {
 }
 
 func TestRecommendations(t *testing.T) {
-	c, _ := newTestClient(t)
+	c, requests := newTestClient(t)
 
 	items, err := c.Recommendations(t.Context(), "movie", "tt1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(items) != 1 || items[0].ID != "tt1" || items[0].Type != "movie" {
-		t.Errorf("recommendations = %+v, want just tt1", items)
+	if len(items) != 2 || items[0].ID != "2" || items[1].ID != "1" || items[0].Type != "movie" {
+		t.Errorf("recommendations = %+v, want 2 then 1", items)
+	}
+	before := requests.Load()
+	if _, err := c.Recommendations(t.Context(), "movie", "tt1"); err != nil {
+		t.Fatal(err)
+	}
+	if requests.Load() != before {
+		t.Error("repeat IMDb-id lookup hit TMDB again (find result not cached)")
 	}
 	if _, err := c.Recommendations(t.Context(), "movie", "bogus"); !errors.Is(err, ErrNotFound) {
 		t.Errorf("bogus id: err = %v, want ErrNotFound", err)
@@ -281,7 +290,7 @@ func TestPersonDetail(t *testing.T) {
 	for _, cr := range p.Credits {
 		got = append(got, cr.ID+"/"+cr.Type+"/"+cr.Character)
 	}
-	if want := "tt1/movie/Andy Dufresne tt5/series/Cameo"; strings.Join(got, " ") != want {
+	if want := "1/movie/Andy Dufresne 2/movie/X 5/series/Cameo"; strings.Join(got, " ") != want {
 		t.Errorf("credits = %v, want %q", got, want)
 	}
 

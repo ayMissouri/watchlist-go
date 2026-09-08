@@ -700,7 +700,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "ID (e.g. tt0111161)",
+                        "description": "TMDB id (e.g. 278). IMDb ids like tt0111161 still work.",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -794,7 +794,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "ID (e.g. tt3322312)",
+                        "description": "TMDB id (e.g. 1396). IMDb ids like tt0903747 still work.",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -852,7 +852,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "ID (e.g. tt0111161)",
+                        "description": "TMDB id (e.g. 278). IMDb ids like tt0111161 still work.",
                         "name": "id",
                         "in": "path",
                         "required": true

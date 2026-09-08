@@ -1285,7 +1285,7 @@ paths:
         name: type
         required: true
         type: string
-      - description: ID (e.g. tt0111161)
+      - description: TMDB id (e.g. 278). IMDb ids like tt0111161 still work.
         in: path
         name: id
         required: true
@@ -1322,7 +1322,7 @@ paths:
     get:
       description: Everything we know about a movie. Cached for a day.
       parameters:
-      - description: ID (e.g. tt0111161)
+      - description: TMDB id (e.g. 278). IMDb ids like tt0111161 still work.
         in: path
         name: id
         required: true
@@ -1387,7 +1387,7 @@ paths:
       description: Everything we know about a series, episodes included (they're in
         `videos`). Cached for a day.
       parameters:
-      - description: ID (e.g. tt3322312)
+      - description: TMDB id (e.g. 1396). IMDb ids like tt0903747 still work.
         in: path
         name: id
         required: true

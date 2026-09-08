@@ -51,9 +51,9 @@ type Client struct {
 	region     string
 	sem        chan struct{}
 
-	mu      sync.RWMutex
-	cache   map[string]cacheEntry
-	imdbIDs sync.Map
+	mu    sync.RWMutex
+	cache map[string]cacheEntry
+	finds sync.Map
 }
 
 func NewClient() *Client {
@@ -148,35 +148,9 @@ func cached[T any](c *Client, key string, ttl time.Duration, fetch func() (T, er
 	return v, nil
 }
 
-func (c *Client) imdbID(ctx context.Context, t string, id int) (string, error) {
-	key := t + "/" + strconv.Itoa(id)
-	if v, ok := c.imdbIDs.Load(key); ok {
-		return v.(string), nil
-	}
-	var ext struct {
-		ImdbID string `json:"imdb_id"`
-	}
-	if err := c.get(ctx, "/"+key+"/external_ids", nil, &ext); err != nil && !errors.Is(err, ErrNotFound) {
-		return "", err
-	}
-	c.imdbIDs.Store(key, ext.ImdbID)
-	return ext.ImdbID, nil
-}
-
-func (c *Client) resolveIDs(ctx context.Context, t string, rows []tmdbListItem) ([]string, error) {
-	ids := make([]string, len(rows))
-	errs := make([]error, len(rows))
-	var wg sync.WaitGroup
-	for i, r := range rows {
-		wg.Go(func() { ids[i], errs[i] = c.imdbID(ctx, cmp.Or(r.MediaType, t), r.ID) })
-	}
-	wg.Wait()
-	return ids, errors.Join(errs...)
-}
-
-func toItem(r tmdbListItem, t, imdbID string) models.DiscoverItem {
+func toItem(r tmdbListItem, t string) models.DiscoverItem {
 	return models.DiscoverItem{
-		ID:         imdbID,
+		ID:         strconv.Itoa(r.ID),
 		Type:       publicType(cmp.Or(r.MediaType, t)),
 		Title:      cmp.Or(r.Title, r.Name),
 		Poster:     image("w500", r.PosterPath),
@@ -186,20 +160,17 @@ func toItem(r tmdbListItem, t, imdbID string) models.DiscoverItem {
 	}
 }
 
-func (c *Client) toItems(ctx context.Context, t string, rows []tmdbListItem) ([]models.DiscoverItem, error) {
-	ids, err := c.resolveIDs(ctx, t, rows)
-	if err != nil {
-		return nil, err
-	}
+func toItems(t string, rows []tmdbListItem) []models.DiscoverItem {
 	items := make([]models.DiscoverItem, 0, len(rows))
 	seen := map[string]bool{}
-	for i, r := range rows {
-		if ids[i] != "" && !seen[ids[i]] {
-			seen[ids[i]] = true
-			items = append(items, toItem(r, t, ids[i]))
+	for _, r := range rows {
+		it := toItem(r, t)
+		if key := it.Type + "/" + it.ID; !seen[key] {
+			seen[key] = true
+			items = append(items, it)
 		}
 	}
-	return items, nil
+	return items
 }
 
 func (c *Client) list(ctx context.Context, t, path string, q url.Values, pages int) ([]models.DiscoverItem, error) {
@@ -220,7 +191,7 @@ func (c *Client) list(ctx context.Context, t, path string, q url.Values, pages i
 	if err := errors.Join(errs...); err != nil {
 		return nil, err
 	}
-	return c.toItems(ctx, t, slices.Concat(results...))
+	return toItems(t, slices.Concat(results...)), nil
 }
 
 var tvNoise = map[string]bool{"10763": true, "10764": true, "10766": true, "10767": true}
@@ -295,29 +266,37 @@ func (c *Client) search(ctx context.Context, t, query string) ([]models.Discover
 	if err := c.get(ctx, "/search/"+t, url.Values{"query": {query}}, &page); err != nil {
 		return nil, err
 	}
-	return c.toItems(ctx, t, page.Results)
+	return toItems(t, page.Results), nil
 }
 
 func (c *Client) MovieDetail(ctx context.Context, id string) (*models.MovieDetail, error) {
-	return cached(c, "movie/"+id, detailCacheTTL, func() (*models.MovieDetail, error) {
-		d, err := c.fetchDetail(ctx, "movie", id, "credits,videos,images")
+	tmdbID, err := c.resolve(ctx, "movie", id)
+	if err != nil {
+		return nil, err
+	}
+	return cached(c, "movie/"+strconv.Itoa(tmdbID), detailCacheTTL, func() (*models.MovieDetail, error) {
+		d, err := c.fetchDetail(ctx, "movie", tmdbID, "credits,videos,images")
 		if err != nil {
 			return nil, err
 		}
-		m := toDetail(d, "movie", cmp.Or(d.ImdbID, id))
+		m := toDetail(d, "movie")
 		m.BehaviorHints.DefaultVideoID = &m.ID
 		return &m, nil
 	})
 }
 
 func (c *Client) SeriesDetail(ctx context.Context, id string) (*models.SeriesDetail, error) {
-	return cached(c, "series/"+id, detailCacheTTL, func() (*models.SeriesDetail, error) {
-		d, err := c.fetchDetail(ctx, "tv", id, "external_ids,credits,videos,images")
+	tmdbID, err := c.resolve(ctx, "tv", id)
+	if err != nil {
+		return nil, err
+	}
+	return cached(c, "series/"+strconv.Itoa(tmdbID), detailCacheTTL, func() (*models.SeriesDetail, error) {
+		d, err := c.fetchDetail(ctx, "tv", tmdbID, "external_ids,credits,videos,images")
 		if err != nil {
 			return nil, err
 		}
 		s := models.SeriesDetail{
-			MovieDetail: toDetail(d, "series", cmp.Or(d.ExternalIDs.ImdbID, id)),
+			MovieDetail: toDetail(d, "series"),
 			Status:      d.Status,
 			TvdbID:      d.ExternalIDs.TvdbID,
 		}
@@ -354,16 +333,17 @@ func (c *Client) SeriesDetail(ctx context.Context, id string) (*models.SeriesDet
 
 func (c *Client) Recommendations(ctx context.Context, mediaType, id string) ([]models.DiscoverItem, error) {
 	t := tmdbType(mediaType)
-	return cached(c, "recommendations/"+t+"/"+id, detailCacheTTL, func() ([]models.DiscoverItem, error) {
-		tmdbID, err := c.resolve(ctx, t, id)
-		if err != nil {
-			return nil, err
-		}
+	tmdbID, err := c.resolve(ctx, t, id)
+	if err != nil {
+		return nil, err
+	}
+	path := "/" + t + "/" + strconv.Itoa(tmdbID) + "/recommendations"
+	return cached(c, path, detailCacheTTL, func() ([]models.DiscoverItem, error) {
 		var page tmdbPage
-		if err := c.get(ctx, "/"+t+"/"+strconv.Itoa(tmdbID)+"/recommendations", nil, &page); err != nil {
+		if err := c.get(ctx, path, nil, &page); err != nil {
 			return nil, err
 		}
-		return c.toItems(ctx, t, page.Results)
+		return toItems(t, page.Results), nil
 	})
 }
 
@@ -382,16 +362,13 @@ func (c *Client) PersonDetail(ctx context.Context, id string) (*models.Person, e
 		rows := p.CombinedCredits.Cast
 		slices.SortFunc(rows, func(a, b tmdbListItem) int { return cmp.Compare(b.Popularity, a.Popularity) })
 		rows = rows[:min(maxCredits, len(rows))]
-		ids, err := c.resolveIDs(ctx, "", rows)
-		if err != nil {
-			return nil, err
-		}
 		credits := make([]models.PersonCredit, 0, len(rows))
 		seen := map[string]bool{}
-		for i, r := range rows {
-			if ids[i] != "" && !seen[ids[i]] {
-				seen[ids[i]] = true
-				credits = append(credits, models.PersonCredit{DiscoverItem: toItem(r, "", ids[i]), Character: r.Character})
+		for _, r := range rows {
+			it := toItem(r, "")
+			if key := it.Type + "/" + it.ID; !seen[key] {
+				seen[key] = true
+				credits = append(credits, models.PersonCredit{DiscoverItem: it, Character: r.Character})
 			}
 		}
 
@@ -410,11 +387,7 @@ func (c *Client) PersonDetail(ctx context.Context, id string) (*models.Person, e
 	})
 }
 
-func (c *Client) fetchDetail(ctx context.Context, t, id, appends string) (*tmdbDetail, error) {
-	tmdbID, err := c.resolve(ctx, t, id)
-	if err != nil {
-		return nil, err
-	}
+func (c *Client) fetchDetail(ctx context.Context, t string, tmdbID int, appends string) (*tmdbDetail, error) {
 	var d tmdbDetail
 	q := url.Values{"append_to_response": {appends}, "include_image_language": {"en,null"}}
 	if err := c.get(ctx, "/"+t+"/"+strconv.Itoa(tmdbID), q, &d); err != nil {
@@ -430,6 +403,10 @@ func (c *Client) resolve(ctx context.Context, t, id string) (int, error) {
 	if !strings.HasPrefix(id, "tt") {
 		return 0, ErrNotFound
 	}
+	key := t + "/" + id
+	if v, ok := c.finds.Load(key); ok {
+		return v.(int), nil
+	}
 	var found struct {
 		Movies []tmdbListItem `json:"movie_results"`
 		TV     []tmdbListItem `json:"tv_results"`
@@ -444,6 +421,7 @@ func (c *Client) resolve(ctx context.Context, t, id string) (int, error) {
 	if len(hits) == 0 {
 		return 0, ErrNotFound
 	}
+	c.finds.Store(key, hits[0].ID)
 	return hits[0].ID, nil
 }
 
@@ -513,7 +491,7 @@ func (c *Client) episodes(ctx context.Context, tmdbID int, publicID string, seas
 	return eps, nil
 }
 
-func toDetail(d *tmdbDetail, mediaType, publicID string) models.MovieDetail {
+func toDetail(d *tmdbDetail, mediaType string) models.MovieDetail {
 	imdb := cmp.Or(d.ImdbID, d.ExternalIDs.ImdbID)
 	release := cmp.Or(d.ReleaseDate, d.FirstAirDate)
 	genres := names(d.Genres)
@@ -547,7 +525,7 @@ func toDetail(d *tmdbDetail, mediaType, publicID string) models.MovieDetail {
 	}
 
 	m := models.MovieDetail{
-		ID:             publicID,
+		ID:             strconv.Itoa(d.ID),
 		ImdbID:         imdb,
 		MoviedbID:      &d.ID,
 		Type:           mediaType,
