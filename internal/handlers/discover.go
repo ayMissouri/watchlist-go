@@ -81,6 +81,10 @@ func (h *DiscoverHandler) Discover(w http.ResponseWriter, r *http.Request) {
 		if genre != "" {
 			var ok bool
 			if gid, ok = genreID(mediaType, genre); !ok {
+				if _, movieOnly := movieGenres[genre]; movieOnly {
+					jsonOK(w, models.DiscoverResponse{Items: []models.DiscoverItem{}})
+					return
+				}
 				jsonError(w, "unknown genre", http.StatusBadRequest)
 				return
 			}
