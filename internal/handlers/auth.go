@@ -217,6 +217,9 @@ func (h *AuthHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 }
 
 func clientIP(r *http.Request) string {
+	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
+		return strings.TrimSpace(strings.Split(fwd, ",")[0])
+	}
 	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
 		return host
 	}

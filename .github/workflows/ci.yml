@@ -91,16 +91,13 @@ jobs:
     needs: test-and-lint
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    concurrency: deploy
 
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v5
-
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
-
-      - name: Deploy to Railway
-        run: railway up --service ${{ secrets.RAILWAY_SERVICE_ID }} --detach
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          RAILWAY_ENVIRONMENT_ID: ${{ secrets.RAILWAY_ENVIRONMENT_ID }}
+      - uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ubuntu
+          key: ${{ secrets.DEPLOY_KEY }}
+          command_timeout: 20m
+          script: /opt/stack/deploy.sh watchlist-go https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
