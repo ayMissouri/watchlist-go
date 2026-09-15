@@ -858,6 +858,11 @@ paths:
   /auth/login:
     get:
       description: Redirects the user to Discord's OAuth2 login screen
+      parameters:
+      - description: Allow-listed native app callback (e.g. awatch://auth/callback)
+        in: query
+        name: redirect_uri
+        type: string
       responses:
         "307":
           description: Temporary Redirect

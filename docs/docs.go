@@ -76,6 +76,14 @@ const docTemplate = `{
                     "auth"
                 ],
                 "summary": "Discord OAuth2 login",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Allow-listed native app callback (e.g. awatch://auth/callback)",
+                        "name": "redirect_uri",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "307": {
                         "description": "Temporary Redirect"
