@@ -2,8 +2,12 @@ package handlers
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"testing"
 
+	"github.com/ayMissouri/watchlist-go.git/internal/auth"
 	"github.com/ayMissouri/watchlist-go.git/internal/models"
 )
 
@@ -28,5 +32,37 @@ func TestUpdateUserRequestPartialFields(t *testing.T) {
 	}
 	if clearName.Settings != nil {
 		t.Error("settings should be untouched")
+	}
+}
+
+func TestLoginNativeRedirectCookie(t *testing.T) {
+	auth.InitDiscord()
+	h := &AuthHandler{}
+
+	cookie := func(target string) *http.Cookie {
+		rec := httptest.NewRecorder()
+		h.Login(rec, httptest.NewRequest(http.MethodGet, target, nil))
+		for _, c := range rec.Result().Cookies() {
+			if c.Name == "oauth_redirect" {
+				return c
+			}
+		}
+		t.Fatalf("no oauth_redirect cookie for %s", target)
+		return nil
+	}
+
+	allowed := cookie("/auth/login?redirect_uri=" + url.QueryEscape("awatch://auth/callback"))
+	if allowed.Value != "awatch://auth/callback" || allowed.MaxAge <= 0 {
+		t.Errorf("allow-listed redirect not stored: %+v", allowed)
+	}
+
+	for _, target := range []string{
+		"/auth/login?redirect_uri=" + url.QueryEscape("evil://auth/callback"),
+		"/auth/login?redirect_uri=" + url.QueryEscape("awatch://auth/callback/../elsewhere"),
+		"/auth/login",
+	} {
+		if c := cookie(target); c.Value != "" || c.MaxAge != -1 {
+			t.Errorf("%s should clear the cookie, got %+v", target, c)
+		}
 	}
 }

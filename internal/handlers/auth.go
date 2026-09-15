@@ -22,9 +22,14 @@ type AuthHandler struct {
 	Tracker *tracking.Service
 }
 
+var nativeRedirects = map[string]bool{
+	"awatch://auth/callback": true,
+}
+
 // Login godoc
 // @Summary     Discord OAuth2 login
 // @Description Redirects the user to Discord's OAuth2 login screen
+// @Param       redirect_uri query string false "Allow-listed native app callback (e.g. awatch://auth/callback)"
 // @Tags        auth
 // @Success     307
 // @Router      /auth/login [get]
@@ -43,6 +48,16 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Secure:   os.Getenv("ENV") == "production",
 		SameSite: http.SameSiteLaxMode,
 	})
+
+	redirectCookie := &http.Cookie{Name: "oauth_redirect", Path: "/", MaxAge: -1}
+	if uri := r.URL.Query().Get("redirect_uri"); nativeRedirects[uri] {
+		redirectCookie.Value = uri
+		redirectCookie.MaxAge = 300 // 5 minutes
+		redirectCookie.HttpOnly = true
+		redirectCookie.Secure = os.Getenv("ENV") == "production"
+		redirectCookie.SameSite = http.SameSiteLaxMode
+	}
+	http.SetCookie(w, redirectCookie)
 
 	http.Redirect(w, r, auth.OAuthConfig.AuthCodeURL(state), http.StatusTemporaryRedirect)
 }
@@ -68,6 +83,12 @@ func (h *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 
 	// Clear the cookie (they are single use)
 	http.SetCookie(w, &http.Cookie{Name: "oauth_state", MaxAge: -1, Path: "/"})
+
+	var nativeRedirect string
+	if c, err := r.Cookie("oauth_redirect"); err == nil && nativeRedirects[c.Value] {
+		nativeRedirect = c.Value
+	}
+	http.SetCookie(w, &http.Cookie{Name: "oauth_redirect", MaxAge: -1, Path: "/"})
 
 	code := r.URL.Query().Get("code")
 	if code == "" {
@@ -111,6 +132,11 @@ func (h *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 				"user_agent": r.UserAgent(),
 			},
 		})
+	}
+
+	if nativeRedirect != "" {
+		http.Redirect(w, r, nativeRedirect+"?token="+url.QueryEscape(token), http.StatusTemporaryRedirect)
+		return
 	}
 
 	frontendURL := os.Getenv("FRONTEND_URL")
