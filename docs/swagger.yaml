@@ -952,8 +952,7 @@ paths:
       consumes:
       - application/json
       description: Email/password login for the App Store review account (REVIEW_EMAIL
-        / REVIEW_PASSWORD). Returns 404 when not configured. The account never has
-        access.
+        / REVIEW_PASSWORD). Returns 404 when not configured.
       parameters:
       - description: Review credentials
         in: body

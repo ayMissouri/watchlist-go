@@ -200,7 +200,7 @@ const docTemplate = `{
         },
         "/auth/review-login": {
             "post": {
-                "description": "Email/password login for the App Store review account (REVIEW_EMAIL / REVIEW_PASSWORD). Returns 404 when not configured. The account never has access.",
+                "description": "Email/password login for the App Store review account (REVIEW_EMAIL / REVIEW_PASSWORD). Returns 404 when not configured.",
                 "consumes": [
                     "application/json"
                 ],
