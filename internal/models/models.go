@@ -92,6 +92,11 @@ type UpdateUserRequest struct {
 	Settings    json.RawMessage `json:"settings,omitempty" swaggertype:"object"`
 }
 
+type ReviewLoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
 type PaginationMeta struct {
 	Page       int `json:"page"`
 	PerPage    int `json:"per_page"`

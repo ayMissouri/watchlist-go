@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
 	"net"
@@ -240,6 +241,55 @@ func (h *AuthHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 	user.Avatar = auth.AvatarURL(user.ID, user.Avatar)
 
 	jsonOK(w, user)
+}
+
+const reviewUserID = "app-review"
+
+// ReviewLogin godoc
+// @Summary     App Store review login
+// @Description Email/password login for the App Store review account (REVIEW_EMAIL / REVIEW_PASSWORD). Returns 404 when not configured.
+// @Tags        auth
+// @Accept      json
+// @Produce     json
+// @Param       body body models.ReviewLoginRequest true "Review credentials"
+// @Success     200 {object} map[string]string
+// @Failure     400 {object} map[string]string
+// @Failure     401 {object} map[string]string
+// @Failure     404 {object} map[string]string
+// @Router      /auth/review-login [post]
+func (h *AuthHandler) ReviewLogin(w http.ResponseWriter, r *http.Request) {
+	email, password := os.Getenv("REVIEW_EMAIL"), os.Getenv("REVIEW_PASSWORD")
+	if email == "" || password == "" {
+		jsonError(w, "not found", http.StatusNotFound)
+		return
+	}
+
+	var req models.ReviewLoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	emailOK := subtle.ConstantTimeCompare([]byte(strings.ToLower(strings.TrimSpace(req.Email))), []byte(strings.ToLower(email)))
+	passOK := subtle.ConstantTimeCompare([]byte(req.Password), []byte(password))
+	if emailOK&passOK != 1 {
+		jsonError(w, "invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
+	user := &models.User{ID: reviewUserID, Username: "App Review", HasAccess: false}
+	if err := h.DB.UpsertUser(r.Context(), user); err != nil {
+		jsonError(w, "could not save user", http.StatusInternalServerError)
+		return
+	}
+
+	token, err := auth.IssueJWT(user.ID, user.Username)
+	if err != nil {
+		jsonError(w, "could not issue token", http.StatusInternalServerError)
+		return
+	}
+
+	jsonOK(w, map[string]string{"token": token})
 }
 
 func clientIP(r *http.Request) string {

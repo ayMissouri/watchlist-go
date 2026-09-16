@@ -64,6 +64,7 @@ func NewRouter(database *db.DB, metaClient *meta.Client) http.Handler {
 		r.Route("/auth", func(r chi.Router) {
 			r.Get("/login", authHandler.Login)
 			r.Get("/callback", authHandler.Callback)
+			r.Post("/review-login", authHandler.ReviewLogin)
 
 			r.With(middleware.RequireAuth).Get("/me", authHandler.Me)
 			r.With(middleware.RequireAuth).Patch("/me", authHandler.UpdateMe)

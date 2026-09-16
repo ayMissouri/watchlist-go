@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/ayMissouri/watchlist-go.git/internal/auth"
@@ -63,6 +64,34 @@ func TestLoginNativeRedirectCookie(t *testing.T) {
 	} {
 		if c := cookie(target); c.Value != "" || c.MaxAge != -1 {
 			t.Errorf("%s should clear the cookie, got %+v", target, c)
+		}
+	}
+}
+
+func TestReviewLoginRejects(t *testing.T) {
+	h := &AuthHandler{}
+	post := func(body string) int {
+		rec := httptest.NewRecorder()
+		h.ReviewLogin(rec, httptest.NewRequest(http.MethodPost, "/auth/review-login", strings.NewReader(body)))
+		return rec.Code
+	}
+
+	t.Setenv("REVIEW_EMAIL", "")
+	t.Setenv("REVIEW_PASSWORD", "")
+	if c := post(`{"email":"","password":""}`); c != http.StatusNotFound {
+		t.Errorf("unconfigured: want 404, got %d", c)
+	}
+
+	t.Setenv("REVIEW_EMAIL", "review@example.com")
+	t.Setenv("REVIEW_PASSWORD", "secret")
+	for body, want := range map[string]int{
+		`not json`: http.StatusBadRequest,
+		`{"email":"review@example.com","password":"wrong"}`: http.StatusUnauthorized,
+		`{"email":"other@example.com","password":"secret"}`: http.StatusUnauthorized,
+		`{"email":"review@example.com","password":""}`:      http.StatusUnauthorized,
+	} {
+		if c := post(body); c != want {
+			t.Errorf("%s: want %d, got %d", body, want, c)
 		}
 	}
 }

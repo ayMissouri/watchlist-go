@@ -198,6 +198,70 @@ const docTemplate = `{
                 }
             }
         },
+        "/auth/review-login": {
+            "post": {
+                "description": "Email/password login for the App Store review account (REVIEW_EMAIL / REVIEW_PASSWORD). Returns 404 when not configured. The account never has access.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "App Store review login",
+                "parameters": [
+                    {
+                        "description": "Review credentials",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.ReviewLoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/calendar": {
             "get": {
                 "security": [
@@ -2419,6 +2483,17 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.ClientEvent"
                     }
+                }
+            }
+        },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.ReviewLoginRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
                 }
             }
         },
