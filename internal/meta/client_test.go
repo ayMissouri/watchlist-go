@@ -5,10 +5,12 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 const movieJSON = `{"id":1,"imdb_id":"tt1","title":"The Shawshank Redemption","overview":"Two imprisoned men.",
@@ -110,6 +112,23 @@ func newTestClient(t *testing.T) (*Client, *atomic.Int32) {
 	c := newClient(srv.URL, "k", "US")
 	c.httpClient = srv.Client()
 	return c, &requests
+}
+
+func TestCacheIsBounded(t *testing.T) {
+	c := newClient("", "k", "US")
+	fetch := func() (int, error) { return 1, nil }
+
+	_, _ = cached(c, "stale", -time.Minute, fetch)
+	_, _ = cached(c, "fresh", time.Hour, fetch)
+	for i := range maxCacheEntries * 2 {
+		_, _ = cached(c, strconv.Itoa(i), time.Hour, fetch)
+		if len(c.cache) > maxCacheEntries {
+			t.Fatalf("cache grew to %d entries, cap is %d", len(c.cache), maxCacheEntries)
+		}
+	}
+	if _, ok := c.cache["stale"]; ok {
+		t.Error("expired entry survived a full-cache sweep")
+	}
 }
 
 func TestCatalog(t *testing.T) {

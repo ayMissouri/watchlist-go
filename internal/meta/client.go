@@ -21,8 +21,9 @@ import (
 )
 
 const (
-	cacheTTL       = time.Hour
-	detailCacheTTL = 24 * time.Hour
+	cacheTTL        = time.Hour
+	detailCacheTTL  = 24 * time.Hour
+	maxCacheEntries = 2000
 
 	imageBase = "https://image.tmdb.org/t/p/"
 
@@ -142,8 +143,18 @@ func cached[T any](c *Client, key string, ttl time.Duration, fetch func() (T, er
 		return zero, err
 	}
 
+	now := time.Now()
 	c.mu.Lock()
-	c.cache[key] = cacheEntry{val: v, expiresAt: time.Now().Add(ttl)}
+	if len(c.cache) >= maxCacheEntries {
+		maps.DeleteFunc(c.cache, func(_ string, e cacheEntry) bool { return now.After(e.expiresAt) })
+		for k := range c.cache {
+			if len(c.cache) < maxCacheEntries {
+				break
+			}
+			delete(c.cache, k)
+		}
+	}
+	c.cache[key] = cacheEntry{val: v, expiresAt: now.Add(ttl)}
 	c.mu.Unlock()
 	return v, nil
 }
@@ -524,10 +535,11 @@ func toDetail(d *tmdbDetail, mediaType string) models.MovieDetail {
 		streams = append(streams, models.TrailerStream{Title: v.Name, YtID: v.Key})
 	}
 
+	tmdbID := d.ID
 	m := models.MovieDetail{
 		ID:             strconv.Itoa(d.ID),
 		ImdbID:         imdb,
-		MoviedbID:      &d.ID,
+		MoviedbID:      &tmdbID,
 		Type:           mediaType,
 		Name:           cmp.Or(d.Title, d.Name),
 		Year:           yearOf(release),
