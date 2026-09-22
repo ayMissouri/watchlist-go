@@ -57,10 +57,10 @@ func (d *DB) UpsertUser(ctx context.Context, u *models.User) error {
 func (d *DB) GetUser(ctx context.Context, id string) (*models.User, error) {
 	u := &models.User{}
 	err := d.Pool.QueryRow(ctx,
-		`SELECT id, username, avatar, COALESCE(display_name, ''), has_access, settings,
+		`SELECT id, username, avatar, COALESCE(display_name, ''), has_access, settings, seen_updates,
 		        COALESCE((EXTRACT(EPOCH FROM created_at) * 1000)::BIGINT, 0)
 		 FROM users WHERE id = $1`, id,
-	).Scan(&u.ID, &u.Username, &u.Avatar, &u.DisplayName, &u.HasAccess, &u.Settings, &u.CreatedAt)
+	).Scan(&u.ID, &u.Username, &u.Avatar, &u.DisplayName, &u.HasAccess, &u.Settings, &u.SeenUpdates, &u.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -80,6 +80,14 @@ func (d *DB) UpdateSettings(ctx context.Context, id string, patch json.RawMessag
 		UPDATE users SET settings = settings || $2::jsonb, updated_at = NOW()
 		WHERE id = $1
 	`, id, []byte(patch))
+	return err
+}
+
+func (d *DB) AddSeenUpdate(ctx context.Context, id, tag string) error {
+	_, err := d.Pool.Exec(ctx, `
+		UPDATE users SET seen_updates = array_append(seen_updates, $2), updated_at = NOW()
+		WHERE id = $1 AND NOT ($2 = ANY(seen_updates))
+	`, id, tag)
 	return err
 }
 

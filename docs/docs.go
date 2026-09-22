@@ -3559,6 +3559,9 @@ const docTemplate = `{
                 "display_name": {
                     "type": "string"
                 },
+                "seen_update": {
+                    "type": "string"
+                },
                 "settings": {
                     "type": "object"
                 }
@@ -3581,6 +3584,12 @@ const docTemplate = `{
                 },
                 "id": {
                     "type": "string"
+                },
+                "seen_updates": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "settings": {
                     "type": "object"

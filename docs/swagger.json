@@ -3553,6 +3553,9 @@
                 "display_name": {
                     "type": "string"
                 },
+                "seen_update": {
+                    "type": "string"
+                },
                 "settings": {
                     "type": "object"
                 }
@@ -3575,6 +3578,12 @@
                 },
                 "id": {
                     "type": "string"
+                },
+                "seen_updates": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "settings": {
                     "type": "object"

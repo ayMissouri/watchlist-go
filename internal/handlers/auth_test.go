@@ -95,3 +95,18 @@ func TestReviewLoginRejects(t *testing.T) {
 		}
 	}
 }
+
+func TestUpdateMeRejectsBadSeenUpdate(t *testing.T) {
+	h := &AuthHandler{}
+	for _, body := range []string{
+		`{"seen_update":""}`,
+		`{"seen_update":"   "}`,
+		`{"seen_update":"` + strings.Repeat("a", maxUpdateTagLen+1) + `"}`,
+	} {
+		rec := httptest.NewRecorder()
+		h.UpdateMe(rec, httptest.NewRequest(http.MethodPatch, "/auth/me", strings.NewReader(body)))
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("%s: got %d, want 400", body, rec.Code)
+		}
+	}
+}

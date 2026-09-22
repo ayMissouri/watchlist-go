@@ -706,6 +706,8 @@ definitions:
     properties:
       display_name:
         type: string
+      seen_update:
+        type: string
       settings:
         type: object
     type: object
@@ -721,6 +723,10 @@ definitions:
         type: boolean
       id:
         type: string
+      seen_updates:
+        items:
+          type: string
+        type: array
       settings:
         type: object
       username:

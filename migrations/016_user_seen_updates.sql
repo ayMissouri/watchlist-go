@@ -1,0 +1,2 @@
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS seen_updates TEXT[] NOT NULL DEFAULT '{}';

@@ -181,6 +181,7 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 const (
 	maxDisplayNameLen = 50
 	maxSettingsBytes  = 16 << 10
+	maxUpdateTagLen   = 64
 )
 
 // UpdateMe godoc
@@ -229,6 +230,18 @@ func (h *AuthHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 		}
 		if err := h.DB.UpdateSettings(r.Context(), claims.UserID, req.Settings); err != nil {
 			jsonError(w, "could not update settings", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if req.SeenUpdate != nil {
+		tag := strings.TrimSpace(*req.SeenUpdate)
+		if tag == "" || len(tag) > maxUpdateTagLen {
+			jsonError(w, "invalid seen_update tag", http.StatusBadRequest)
+			return
+		}
+		if err := h.DB.AddSeenUpdate(r.Context(), claims.UserID, tag); err != nil {
+			jsonError(w, "could not update seen updates", http.StatusInternalServerError)
 			return
 		}
 	}

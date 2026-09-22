@@ -9,7 +9,8 @@ type User struct {
 	DisplayName string `json:"display_name,omitempty"`
 	HasAccess   bool   `json:"has_access"`
 	Settings  json.RawMessage `json:"settings,omitempty" swaggertype:"object"`
-	CreatedAt int64           `json:"created_at,omitempty"`
+	SeenUpdates []string `json:"seen_updates"`
+	CreatedAt   int64    `json:"created_at,omitempty"`
 }
 
 type Progress struct {
@@ -93,6 +94,7 @@ type PlaysResponse struct {
 type UpdateUserRequest struct {
 	DisplayName *string         `json:"display_name,omitempty"`
 	Settings    json.RawMessage `json:"settings,omitempty" swaggertype:"object"`
+	SeenUpdate *string `json:"seen_update,omitempty"`
 }
 
 type ReviewLoginRequest struct {
