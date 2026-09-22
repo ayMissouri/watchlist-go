@@ -60,7 +60,7 @@ func TestAnime(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(items) != 1 || items[0].ID != "16498" || items[0].Type != "anime" || items[0].Year != "2013" ||
+	if len(items) != 1 || items[0].ID != "16498" || items[0].Type != "anime" || items[0].Year != "2013" || items[0].ReleaseDate != "2013-04-07" ||
 		items[0].ImdbRating != "" || items[0].Title != "Shingeki no Kyojin" || items[0].TitleEnglish != "Attack on Titan" {
 		t.Errorf("catalog = %+v", items)
 	}

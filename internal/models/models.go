@@ -132,6 +132,7 @@ type DiscoverItem struct {
 	Background   string `json:"background,omitempty"`
 	ImdbRating   string `json:"imdb_rating,omitempty"`
 	Year         string `json:"year,omitempty"`
+	ReleaseDate  string `json:"release_date,omitempty"`
 }
 
 type DiscoverResponse struct {

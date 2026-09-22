@@ -158,6 +158,7 @@ func toAnimeItem(n malNode, lang string) models.DiscoverItem {
 		Poster:       poster(n),
 		ImdbRating:   rating(n.Mean, n.NumScoringUsers),
 		Year:         yearOf(n.StartDate),
+		ReleaseDate:  n.StartDate,
 	}
 }
 
