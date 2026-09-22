@@ -24,13 +24,15 @@ type DiscoverHandler struct {
 // Discover godoc
 // @Summary     Discover movies or shows
 // @Description Returns one catalog. Use `sort` (optionally with `genre`) for popular/top-rated, `year` for a single release year, or `provider` for a streaming service. If you send more than one, `provider` wins over `year`, which wins over `sort`. Cached for an hour.
+// @Description Anime comes from MyAnimeList and only takes `sort`, which also allows `airing` and `upcoming` there.
 // @Tags        discover
 // @Produce     json
-// @Param       type     query string true  "Media type" Enums(movie, series)
-// @Param       sort     query string false "Sort order (default popular)" Enums(popular, top_rated)
+// @Param       type     query string true  "Media type" Enums(movie, series, anime)
+// @Param       sort     query string false "Sort order (default popular)" Enums(popular, top_rated, airing, upcoming)
 // @Param       genre    query string false "Genre filter. Movies: action, adventure, animation, comedy, crime, documentary, drama, family, fantasy, history, horror, mystery, romance, sci-fi, thriller, war, western. Series: action, adventure, animation, comedy, crime, documentary, drama, family, fantasy, mystery, sci-fi, war, western, reality-tv, talk-show"
 // @Param       year     query string false "Release year, e.g. 2025 (overrides sort)"
 // @Param       provider query string false "Streaming provider (overrides sort and year)" Enums(netflix, hbomax, disney, prime, appletv)
+// @Param       title    query string false "Anime title language (default romaji, used when MAL has no title in that language)" Enums(romaji, english, native)
 // @Success     200 {object} models.DiscoverResponse
 // @Failure     400 {object} map[string]string
 // @Failure     502 {object} map[string]string
@@ -43,8 +45,8 @@ func (h *DiscoverHandler) Discover(w http.ResponseWriter, r *http.Request) {
 	year := strings.TrimSpace(q.Get("year"))
 	provider := strings.ToLower(strings.TrimSpace(q.Get("provider")))
 
-	if mediaType != "movie" && mediaType != "series" {
-		jsonError(w, `type must be "movie" or "series"`, http.StatusBadRequest)
+	if mediaType != "movie" && mediaType != "series" && mediaType != "anime" {
+		jsonError(w, `type must be "movie", "series" or "anime"`, http.StatusBadRequest)
 		return
 	}
 
@@ -54,6 +56,14 @@ func (h *DiscoverHandler) Discover(w http.ResponseWriter, r *http.Request) {
 	)
 
 	switch {
+	case mediaType == "anime":
+		ranking, ok := animeRankings[cmp.Or(sort, "popular")]
+		if !ok || genre != "" || year != "" || provider != "" {
+			jsonError(w, `anime only supports sort: "popular", "top_rated", "airing" or "upcoming"`, http.StatusBadRequest)
+			return
+		}
+		items, err = h.Meta.AnimeCatalog(r.Context(), ranking, q.Get("title"))
+
 	case provider != "":
 		id, ok := providerID(provider)
 		if !ok {
@@ -205,13 +215,70 @@ func (h *DiscoverHandler) SeriesDetail(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, detail)
 }
 
-// Recommendations godoc
-// @Summary     Get recommendations for a title
-// @Description What TMDB recommends alongside this movie or series, in the same shape as a discover catalog. Cached for a day.
+// AnimeDetail godoc
+// @Summary     Get anime details
+// @Description Everything MyAnimeList has on an anime. There's no episode list, only the `episodes` count. Cached for a day.
 // @Tags        meta
 // @Produce     json
-// @Param       type path     string true "Media type" Enums(movie, series)
-// @Param       id   path     string true "TMDB id (e.g. 278). IMDb ids like tt0111161 still work."
+// @Param       id    path  string true  "MyAnimeList id (e.g. 5114)"
+// @Param       title query string false "Anime title language (default romaji, used when MAL has no title in that language)" Enums(romaji, english, native)
+// @Success     200 {object} models.AnimeDetail
+// @Failure     404 {object} map[string]string
+// @Failure     502 {object} map[string]string
+// @Router      /meta/anime/{id} [get]
+func (h *DiscoverHandler) AnimeDetail(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	detail, err := h.Meta.AnimeDetail(r.Context(), id, r.URL.Query().Get("title"))
+	if err != nil {
+		if errors.Is(err, meta.ErrNotFound) {
+			jsonError(w, "anime not found", http.StatusNotFound)
+			return
+		}
+		jsonError(w, "could not fetch anime details", http.StatusBadGateway)
+		return
+	}
+
+	h.trackView(r, id, "", "anime", detail.Name)
+	jsonOK(w, detail)
+}
+
+// AnimeEpisodes godoc
+// @Summary     Get anime episodes
+// @Description The episode list for an anime, all seasons flattened into season 1, the way MyAnimeList counts them.
+// @Description Titles and air dates come from a self-hosted Jikan instance (JIKAN_URL). When that isn't configured
+// @Description or can't be reached, episodes come back numbered ("Episode 1") with no air date, so the count is
+// @Description still right. Cached for a day.
+// @Tags        meta
+// @Produce     json
+// @Param       id  path     string true "MyAnimeList id (e.g. 5114)"
+// @Success     200 {object} models.EpisodesResponse
+// @Failure     404 {object} map[string]string
+// @Failure     502 {object} map[string]string
+// @Router      /meta/anime/{id}/episodes [get]
+func (h *DiscoverHandler) AnimeEpisodes(w http.ResponseWriter, r *http.Request) {
+	items, err := h.Meta.AnimeEpisodes(r.Context(), chi.URLParam(r, "id"))
+	if err != nil {
+		if errors.Is(err, meta.ErrNotFound) {
+			jsonError(w, "anime not found", http.StatusNotFound)
+			return
+		}
+		jsonError(w, "could not fetch episodes", http.StatusBadGateway)
+		return
+	}
+	if items == nil {
+		items = []models.Episode{}
+	}
+	jsonOK(w, models.EpisodesResponse{Items: items})
+}
+
+// Recommendations godoc
+// @Summary     Get recommendations for a title
+// @Description What TMDB (or MyAnimeList, for anime) recommends alongside this title, in the same shape as a discover catalog. Cached for a day.
+// @Tags        meta
+// @Produce     json
+// @Param       type path     string true "Media type" Enums(movie, series, anime)
+// @Param       id   path     string true "TMDB id (e.g. 278), MAL id for anime. IMDb ids like tt0111161 still work for movies and series."
 // @Success     200 {object} models.DiscoverResponse
 // @Failure     400 {object} map[string]string
 // @Failure     404 {object} map[string]string
@@ -219,12 +286,21 @@ func (h *DiscoverHandler) SeriesDetail(w http.ResponseWriter, r *http.Request) {
 // @Router      /meta/{type}/{id}/recommendations [get]
 func (h *DiscoverHandler) Recommendations(w http.ResponseWriter, r *http.Request) {
 	mediaType := chi.URLParam(r, "type")
-	if mediaType != "movie" && mediaType != "series" {
-		jsonError(w, `type must be "movie" or "series"`, http.StatusBadRequest)
+	id := chi.URLParam(r, "id")
+
+	var (
+		items []models.DiscoverItem
+		err   error
+	)
+	switch mediaType {
+	case "movie", "series":
+		items, err = h.Meta.Recommendations(r.Context(), mediaType, id)
+	case "anime":
+		items, err = h.Meta.AnimeRecommendations(r.Context(), id)
+	default:
+		jsonError(w, `type must be "movie", "series" or "anime"`, http.StatusBadRequest)
 		return
 	}
-
-	items, err := h.Meta.Recommendations(r.Context(), mediaType, chi.URLParam(r, "id"))
 	if err != nil {
 		if errors.Is(err, meta.ErrNotFound) {
 			jsonError(w, "title not found", http.StatusNotFound)
@@ -262,10 +338,12 @@ func (h *DiscoverHandler) PersonDetail(w http.ResponseWriter, r *http.Request) {
 // Search godoc
 // @Summary     Search movies and shows
 // @Description Search by title. Leave `type` out and you get movies and shows mixed together, newest first.
+// @Description Anime is only searched with `type=anime` (MyAnimeList needs at least 3 characters).
 // @Tags        search
 // @Produce     json
 // @Param       q    query string true  "Search query"
-// @Param       type query string false "Filter by type" Enums(movie, series)
+// @Param       type query string false "Filter by type" Enums(movie, series, anime)
+// @Param       title query string false "Anime title language (default romaji, used when MAL has no title in that language)" Enums(romaji, english, native)
 // @Success     200 {object} models.SearchResponse
 // @Failure     400 {object} map[string]string
 // @Failure     502 {object} map[string]string
@@ -278,8 +356,8 @@ func (h *DiscoverHandler) Search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	mediaType := r.URL.Query().Get("type")
-	if mediaType != "" && mediaType != "movie" && mediaType != "series" {
-		jsonError(w, `type must be "movie" or "series"`, http.StatusBadRequest)
+	if mediaType != "" && mediaType != "movie" && mediaType != "series" && mediaType != "anime" {
+		jsonError(w, `type must be "movie", "series" or "anime"`, http.StatusBadRequest)
 		return
 	}
 
@@ -301,6 +379,15 @@ func (h *DiscoverHandler) Search(w http.ResponseWriter, r *http.Request) {
 		}
 		h.trackSearch(r, query, "series", len(items))
 		jsonOK(w, models.SearchResponse{Items: items, Query: query, Type: "series"})
+
+	case "anime":
+		items, err := h.Meta.SearchAnime(r.Context(), query, r.URL.Query().Get("title"))
+		if err != nil {
+			jsonError(w, "search failed", http.StatusBadGateway)
+			return
+		}
+		h.trackSearch(r, query, "anime", len(items))
+		jsonOK(w, models.SearchResponse{Items: items, Query: query, Type: "anime"})
 
 	default:
 		var (

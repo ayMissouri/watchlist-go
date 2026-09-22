@@ -33,7 +33,8 @@ func NewRouter(database *db.DB, metaClient *meta.Client) http.Handler {
 	calendarSvc := calendar.NewService(database, metaClient)
 
 	authHandler := &handlers.AuthHandler{DB: database, Tracker: tracker}
-	wlHandler := &handlers.WatchlistHandler{DB: database, Tracker: tracker, Calendar: calendarSvc}
+	wlHandler := &handlers.WatchlistHandler{DB: database, Tracker: tracker, Calendar: calendarSvc, Types: []string{"tv", "movie"}}
+	animeWLHandler := &handlers.WatchlistHandler{DB: database, Tracker: tracker, Types: []string{"anime"}}
 	notifHandler := &handlers.NotificationsHandler{DB: database, Calendar: calendarSvc}
 	discoverHandler := &handlers.DiscoverHandler{
 		Meta:    metaClient,
@@ -70,20 +71,8 @@ func NewRouter(database *db.DB, metaClient *meta.Client) http.Handler {
 			r.With(middleware.RequireAuth).Patch("/me", authHandler.UpdateMe)
 		})
 
-		r.Route("/watchlist", func(r chi.Router) {
-			// Everything in here needs a valid token.
-			r.Use(middleware.RequireAuth)
-
-			r.Get("/", wlHandler.GetAll)
-			r.Put("/{id}", wlHandler.Upsert)
-			r.Get("/{id}", wlHandler.GetOne)
-			r.Patch("/{id}/progress", wlHandler.UpdateProgress)
-			r.Patch("/{id}/status", wlHandler.UpdateStatus)
-			r.Post("/{id}/plays", wlHandler.AddPlay)
-			r.Delete("/{id}/plays", wlHandler.RemovePlay)
-			r.Delete("/{id}", wlHandler.Delete)
-			r.Delete("/", wlHandler.BulkDelete)
-		})
+		r.Route("/watchlist", watchlistRoutes(wlHandler))
+		r.Route("/anime/watchlist", watchlistRoutes(animeWLHandler))
 
 		r.Route("/notifications", func(r chi.Router) {
 			r.Use(middleware.RequireAuth)
@@ -134,6 +123,8 @@ func NewRouter(database *db.DB, metaClient *meta.Client) http.Handler {
 
 			r.Get("/movie/{id}", discoverHandler.MovieDetail)
 			r.Get("/series/{id}", discoverHandler.SeriesDetail)
+			r.Get("/anime/{id}", discoverHandler.AnimeDetail)
+			r.Get("/anime/{id}/episodes", discoverHandler.AnimeEpisodes)
 			r.Get("/person/{id}", discoverHandler.PersonDetail)
 			r.Get("/{type}/{id}/recommendations", discoverHandler.Recommendations)
 		})
@@ -142,4 +133,20 @@ func NewRouter(database *db.DB, metaClient *meta.Client) http.Handler {
 	})
 
 	return r
+}
+
+func watchlistRoutes(h *handlers.WatchlistHandler) func(chi.Router) {
+	return func(r chi.Router) {
+		r.Use(middleware.RequireAuth)
+
+		r.Get("/", h.GetAll)
+		r.Put("/{id}", h.Upsert)
+		r.Get("/{id}", h.GetOne)
+		r.Patch("/{id}/progress", h.UpdateProgress)
+		r.Patch("/{id}/status", h.UpdateStatus)
+		r.Post("/{id}/plays", h.AddPlay)
+		r.Delete("/{id}/plays", h.RemovePlay)
+		r.Delete("/{id}", h.Delete)
+		r.Delete("/", h.BulkDelete)
+	}
 }

@@ -105,7 +105,7 @@ func (d *DB) EnrichEvent(ctx context.Context, id int64, genres []string, release
 	return err
 }
 
-func (d *DB) GetEvents(ctx context.Context, userID string, limit int, fromMs, toMs int64) ([]models.UserEvent, error) {
+func (d *DB) GetEvents(ctx context.Context, userID string, limit int, fromMs, toMs int64, mediaTypes []string) ([]models.UserEvent, error) {
 	if fromMs < 0 {
 		fromMs = 0
 	}
@@ -113,16 +113,18 @@ func (d *DB) GetEvents(ctx context.Context, userID string, limit int, fromMs, to
 		toMs = math.MaxInt64
 	}
 	rows, err := d.Pool.Query(ctx, `
-		SELECT id, event_type, source, item_id, media_type, imdb_id, title,
-		       season, episode, runtime_minutes, genres, release_year, metadata,
-		       (EXTRACT(EPOCH FROM occurred_at) * 1000)::BIGINT AS occurred_ms
-		FROM user_events
-		WHERE user_id = $1
-		  AND (EXTRACT(EPOCH FROM occurred_at) * 1000)::BIGINT >= $2
-		  AND (EXTRACT(EPOCH FROM occurred_at) * 1000)::BIGINT <  $3
-		ORDER BY occurred_at DESC
+		SELECT e.id, e.event_type, e.source, e.item_id, e.media_type, e.imdb_id, e.title, COALESCE(w.title_english, ''),
+		       e.season, e.episode, e.runtime_minutes, e.genres, e.release_year, e.metadata,
+		       (EXTRACT(EPOCH FROM e.occurred_at) * 1000)::BIGINT AS occurred_ms
+		FROM user_events e
+		LEFT JOIN watchlist_items w ON w.user_id = e.user_id AND w.id = e.item_id
+		WHERE e.user_id = $1
+		  AND (EXTRACT(EPOCH FROM e.occurred_at) * 1000)::BIGINT >= $2
+		  AND (EXTRACT(EPOCH FROM e.occurred_at) * 1000)::BIGINT <  $3
+		  AND ($5::text[] IS NULL OR e.media_type = ANY($5))
+		ORDER BY e.occurred_at DESC
 		LIMIT $4
-	`, userID, fromMs, toMs, limit)
+	`, userID, fromMs, toMs, limit, nullStrings(mediaTypes))
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +137,7 @@ func (d *DB) GetEvents(ctx context.Context, userID string, limit int, fromMs, to
 		var season, episode, runtime, releaseYear *int
 		var metaJSON []byte
 		if err := rows.Scan(
-			&ev.ID, &ev.EventType, &ev.Source, &itemID, &mediaType, &imdbID, &title,
+			&ev.ID, &ev.EventType, &ev.Source, &itemID, &mediaType, &imdbID, &title, &ev.TitleEnglish,
 			&season, &episode, &runtime, &ev.Genres, &releaseYear, &metaJSON, &ev.OccurredAt,
 		); err != nil {
 			return nil, err
@@ -184,8 +186,8 @@ func (d *DB) GetEventTotals(ctx context.Context, userID string, start, end time.
 		  COUNT(*) FILTER (WHERE event_type = 'login'),
 		  COALESCE(SUM(runtime_minutes * CASE WHEN event_type = 'episode_watch' THEN `+episodeDelta+` ELSE 1 END) FILTER (WHERE `+watchEventFilter+`), 0),
 		  COUNT(DISTINCT item_id) FILTER (WHERE `+watchEventFilter+`),
-		  COUNT(DISTINCT item_id) FILTER (WHERE event_type = 'episode_watch' AND media_type = 'tv'),
-		  COUNT(DISTINCT item_id) FILTER (WHERE event_type = 'status_change' AND media_type = 'tv' AND metadata->>'to' = 'watched'),
+		  COUNT(DISTINCT item_id) FILTER (WHERE event_type = 'episode_watch' AND media_type IN ('tv','anime')),
+		  COUNT(DISTINCT item_id) FILTER (WHERE event_type = 'status_change' AND media_type IN ('tv','anime') AND metadata->>'to' = 'watched'),
 		  COALESCE((EXTRACT(EPOCH FROM MIN(occurred_at)) * 1000)::BIGINT, 0),
 		  COALESCE((EXTRACT(EPOCH FROM MAX(occurred_at)) * 1000)::BIGINT, 0)
 		FROM user_events
@@ -196,6 +198,26 @@ func (d *DB) GetEventTotals(ctx context.Context, userID string, start, end time.
 		&t.FirstAt, &t.LastAt,
 	)
 	return t, err
+}
+
+func (d *DB) GetWatchlistTotals(ctx context.Context, userID string) (models.ProfileWatchlist, error) {
+	var w models.ProfileWatchlist
+	err := d.Pool.QueryRow(ctx, `
+		WITH items AS (
+		  SELECT media_type = 'movie' OR format = 'movie' AS film, status, episodes_watched
+		  FROM watchlist_items
+		  WHERE user_id = $1
+		)
+		SELECT
+		  COUNT(*),
+		  COUNT(*) FILTER (WHERE NOT film),
+		  COUNT(*) FILTER (WHERE film),
+		  COUNT(*) FILTER (WHERE status = 'watched'),
+		  COALESCE(SUM(episodes_watched) FILTER (WHERE NOT film), 0),
+		  COUNT(*) FILTER (WHERE NOT film AND status = 'watched')
+		FROM items
+	`, userID).Scan(&w.Titles, &w.Shows, &w.Films, &w.Completed, &w.EpisodesWatched, &w.ShowsCompleted)
+	return w, err
 }
 
 // GetTopGenres returns the user's most-watched genres in the window.

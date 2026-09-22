@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"net/http"
+	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/ayMissouri/watchlist-go.git/internal/models"
 )
@@ -13,8 +15,21 @@ const (
 	maxPerPage     = 100
 )
 
-func parseWatchlistQuery(r *http.Request) models.WatchlistQuery {
+var eventMediaTypes = []string{"tv", "movie", "anime"}
+
+func parseMediaTypes(s string) []string {
+	var out []string
+	for t := range strings.SplitSeq(s, ",") {
+		if slices.Contains(eventMediaTypes, t) {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+func parseWatchlistQuery(r *http.Request, types []string) models.WatchlistQuery {
 	q := models.WatchlistQuery{
+		Types:   types,
 		Page:    defaultPage,
 		PerPage: defaultPerPage,
 		Sort:    "last_updated",
@@ -37,8 +52,8 @@ func parseWatchlistQuery(r *http.Request) models.WatchlistQuery {
 	}
 
 	// Whitelist of query parameters to prevent SQL injection.
-	if t := r.URL.Query().Get("type"); t == "tv" || t == "movie" {
-		q.Type = t
+	if t := r.URL.Query().Get("type"); slices.Contains(types, t) {
+		q.Types = []string{t}
 	}
 
 	if s := models.WatchlistStatus(r.URL.Query().Get("status")); s.Valid() {

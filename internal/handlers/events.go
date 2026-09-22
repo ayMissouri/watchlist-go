@@ -57,6 +57,7 @@ func (h *EventsHandler) Record(w http.ResponseWriter, r *http.Request) {
 // @Tags        events
 // @Produce     json
 // @Param       limit query int false "Max events to return" default(50)
+// @Param       media_type query string false "Comma-separated media types to keep (tv, movie, anime)"
 // @Param       from  query int false "Only include events at or after this Unix ms timestamp"
 // @Param       to    query int false "Only include events strictly before this Unix ms timestamp"
 // @Success     200 {object} models.EventsResponse
@@ -79,7 +80,9 @@ func (h *EventsHandler) List(w http.ResponseWriter, r *http.Request) {
 	from := parseEpochMs(r.URL.Query().Get("from"))
 	to := parseEpochMs(r.URL.Query().Get("to"))
 
-	items, err := h.DB.GetEvents(r.Context(), claims.UserID, limit, from, to)
+	mediaTypes := parseMediaTypes(r.URL.Query().Get("media_type"))
+
+	items, err := h.DB.GetEvents(r.Context(), claims.UserID, limit, from, to, mediaTypes)
 	if err != nil {
 		jsonError(w, "could not fetch events", http.StatusInternalServerError)
 		return

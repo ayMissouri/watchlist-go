@@ -1,5 +1,51 @@
 basePath: /
 definitions:
+  github_com_ayMissouri_watchlist-go_git_internal_models.AnimeDetail:
+    properties:
+      description:
+        type: string
+      english_name:
+        type: string
+      episodes:
+        description: 0 for unknown
+        type: integer
+      format:
+        description: tv, movie, ova, ona, special, music
+        type: string
+      genres:
+        items:
+          type: string
+        type: array
+      id:
+        description: MAL id
+        type: string
+      links:
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Link'
+        type: array
+      name:
+        type: string
+      poster:
+        type: string
+      released:
+        type: string
+      runtime:
+        description: per episode
+        type: string
+      score:
+        type: string
+      status:
+        description: finished_airing, currently_airing, not_yet_aired
+        type: string
+      studios:
+        items:
+          type: string
+        type: array
+      type:
+        type: string
+      year:
+        type: string
+    type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.BehaviorHints:
     properties:
       defaultVideoId:
@@ -123,6 +169,9 @@ definitions:
         type: string
       title:
         type: string
+      title_english:
+        description: anime only
+        type: string
       type:
         type: string
       year:
@@ -139,12 +188,16 @@ definitions:
     properties:
       episode:
         type: integer
+      filler:
+        type: boolean
       id:
         type: string
       imdbRating:
         type: string
       overview:
         type: string
+      recap:
+        type: boolean
       released:
         type: string
       season:
@@ -164,6 +217,13 @@ definitions:
         $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Progress'
       season:
         type: integer
+    type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.EpisodesResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Episode'
+        type: array
     type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.EventsResponse:
     properties:
@@ -397,6 +457,9 @@ definitions:
         type: string
       title:
         type: string
+      title_english:
+        description: anime only
+        type: string
       type:
         type: string
       year:
@@ -441,6 +504,25 @@ definitions:
       total_events:
         type: integer
       watch_time_minutes:
+        type: integer
+      watchlist:
+        $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.ProfileWatchlist'
+    type: object
+  github_com_ayMissouri_watchlist-go_git_internal_models.ProfileWatchlist:
+    properties:
+      completed:
+        type: integer
+      episodes_watched:
+        type: integer
+      films:
+        description: anime films included
+        type: integer
+      shows:
+        description: tv and anime series
+        type: integer
+      shows_completed:
+        type: integer
+      titles:
         type: integer
     type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.Progress:
@@ -677,6 +759,9 @@ definitions:
         type: string
       title:
         type: string
+      title_english:
+        description: read-only, from the anime's watchlist item
+        type: string
       user_id:
         type: string
     type: object
@@ -697,6 +782,9 @@ definitions:
         type: integer
       episodes_watched:
         type: integer
+      format:
+        description: 'anime only: tv, movie, ova, ...'
+        type: string
       id:
         type: string
       imdb_id:
@@ -708,6 +796,8 @@ definitions:
           0.
         type: integer
       last_updated:
+        type: integer
+      mal_id:
         type: integer
       plays:
         description: |-
@@ -723,6 +813,9 @@ definitions:
       status:
         $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.WatchlistStatus'
       title:
+        type: string
+      title_english:
+        description: anime only; Title is romaji
         type: string
       tmdb_id:
         type: integer
@@ -829,6 +922,375 @@ info:
   title: Watchlist API
   version: "1.0"
 paths:
+  /anime/watchlist:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes several items in one go and tells you how many actually
+        went.
+      parameters:
+      - description: List of item IDs to delete
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.BulkDeleteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              format: int64
+              type: integer
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Bulk delete watchlist items
+      tags:
+      - watchlist
+    get:
+      description: |-
+        The user's watchlist, one page at a time. Filter by type or status, sort however you like.
+        Anime has its own watchlist under /anime/watchlist, with the same endpoints.
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: per_page
+        type: integer
+      - description: Filter by type (not used by the anime watchlist)
+        enum:
+        - tv
+        - movie
+        in: query
+        name: type
+        type: string
+      - description: Filter by status
+        enum:
+        - watching
+        - watched
+        - plan_to_watch
+        - paused
+        - dropped
+        in: query
+        name: status
+        type: string
+      - description: Sort field
+        enum:
+        - last_updated
+        - title
+        in: query
+        name: sort
+        type: string
+      - description: Sort order
+        enum:
+        - asc
+        - desc
+        in: query
+        name: order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.WatchlistResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get watchlist
+      tags:
+      - watchlist
+  /anime/watchlist/{id}:
+    delete:
+      description: Deletes a watchlist item by ID
+      parameters:
+      - description: Item ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Remove watchlist item
+      tags:
+      - watchlist
+    get:
+      description: Returns a single watchlist item by ID
+      parameters:
+      - description: Item ID (e.g. t63174 or m533535)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.WatchlistItem'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get watchlist item
+      tags:
+      - watchlist
+    put:
+      consumes:
+      - application/json
+      description: |-
+        Adds the item, or replaces the whole thing if it's already there. Use the progress/status endpoints for partial updates.
+        The anime watchlist takes type "anime", with the MyAnimeList id in `mal_id`. Item ids are shared
+        by both watchlists, so an id already used in the other one is rejected with a 409.
+      parameters:
+      - description: Item ID (e.g. t63174 or m533535)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Watchlist item
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.WatchlistItem'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add or update watchlist item
+      tags:
+      - watchlist
+  /anime/watchlist/{id}/plays:
+    delete:
+      description: |-
+        Drops the most recent play and the watch time that came with it. The item goes
+        back to plan_to_watch once no plays are left.
+      parameters:
+      - description: Item ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.PlaysResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Undo the newest play
+      tags:
+      - watchlist
+    post:
+      description: |-
+        Records one more completed watch of an item and marks it watched. This is the
+        "watch it again" half of the checkbox prompt.
+      parameters:
+      - description: Item ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.PlaysResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Log another play
+      tags:
+      - watchlist
+  /anime/watchlist/{id}/progress:
+    patch:
+      consumes:
+      - application/json
+      description: Just bumps playback progress. Everything else on the item stays
+        as it was.
+      parameters:
+      - description: Item ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Progress update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.UpdateProgressRequest'
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update item progress
+      tags:
+      - watchlist
+  /anime/watchlist/{id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: Sets the watch status of an item (watching, watched, plan_to_watch,
+        paused, dropped)
+      parameters:
+      - description: Item ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Status update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.UpdateStatusRequest'
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update item status
+      tags:
+      - watchlist
   /auth/callback:
     get:
       description: Handles the Discord redirect, issues a JWT, and redirects to the
@@ -1043,15 +1505,15 @@ paths:
       - calendar
   /discover:
     get:
-      description: Returns one catalog. Use `sort` (optionally with `genre`) for popular/top-rated,
-        `year` for a single release year, or `provider` for a streaming service. If
-        you send more than one, `provider` wins over `year`, which wins over `sort`.
-        Cached for an hour.
+      description: |-
+        Returns one catalog. Use `sort` (optionally with `genre`) for popular/top-rated, `year` for a single release year, or `provider` for a streaming service. If you send more than one, `provider` wins over `year`, which wins over `sort`. Cached for an hour.
+        Anime comes from MyAnimeList and only takes `sort`, which also allows `airing` and `upcoming` there.
       parameters:
       - description: Media type
         enum:
         - movie
         - series
+        - anime
         in: query
         name: type
         required: true
@@ -1060,6 +1522,8 @@ paths:
         enum:
         - popular
         - top_rated
+        - airing
+        - upcoming
         in: query
         name: sort
         type: string
@@ -1084,6 +1548,15 @@ paths:
         - appletv
         in: query
         name: provider
+        type: string
+      - description: Anime title language (default romaji, used when MAL has no title
+          in that language)
+        enum:
+        - romaji
+        - english
+        - native
+        in: query
+        name: title
         type: string
       produces:
       - application/json
@@ -1137,6 +1610,10 @@ paths:
         in: query
         name: limit
         type: integer
+      - description: Comma-separated media types to keep (tv, movie, anime)
+        in: query
+        name: media_type
+        type: string
       - description: Only include events at or after this Unix ms timestamp
         in: query
         name: from
@@ -1329,18 +1806,20 @@ paths:
       - lobbies
   /meta/{type}/{id}/recommendations:
     get:
-      description: What TMDB recommends alongside this movie or series, in the same
-        shape as a discover catalog. Cached for a day.
+      description: What TMDB (or MyAnimeList, for anime) recommends alongside this
+        title, in the same shape as a discover catalog. Cached for a day.
       parameters:
       - description: Media type
         enum:
         - movie
         - series
+        - anime
         in: path
         name: type
         required: true
         type: string
-      - description: TMDB id (e.g. 278). IMDb ids like tt0111161 still work.
+      - description: TMDB id (e.g. 278), MAL id for anime. IMDb ids like tt0111161
+          still work for movies and series.
         in: path
         name: id
         required: true
@@ -1371,6 +1850,82 @@ paths:
               type: string
             type: object
       summary: Get recommendations for a title
+      tags:
+      - meta
+  /meta/anime/{id}:
+    get:
+      description: Everything MyAnimeList has on an anime. There's no episode list,
+        only the `episodes` count. Cached for a day.
+      parameters:
+      - description: MyAnimeList id (e.g. 5114)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Anime title language (default romaji, used when MAL has no title
+          in that language)
+        enum:
+        - romaji
+        - english
+        - native
+        in: query
+        name: title
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.AnimeDetail'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Bad Gateway
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get anime details
+      tags:
+      - meta
+  /meta/anime/{id}/episodes:
+    get:
+      description: |-
+        The episode list for an anime, all seasons flattened into season 1, the way MyAnimeList counts them.
+        Titles and air dates come from a self-hosted Jikan instance (JIKAN_URL). When that isn't configured
+        or can't be reached, episodes come back numbered ("Episode 1") with no air date, so the count is
+        still right. Cached for a day.
+      parameters:
+      - description: MyAnimeList id (e.g. 5114)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.EpisodesResponse'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Bad Gateway
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get anime episodes
       tags:
       - meta
   /meta/movie/{id}:
@@ -1544,8 +2099,9 @@ paths:
       - notifications
   /search:
     get:
-      description: Search by title. Leave `type` out and you get movies and shows
-        mixed together, newest first.
+      description: |-
+        Search by title. Leave `type` out and you get movies and shows mixed together, newest first.
+        Anime is only searched with `type=anime` (MyAnimeList needs at least 3 characters).
       parameters:
       - description: Search query
         in: query
@@ -1556,8 +2112,18 @@ paths:
         enum:
         - movie
         - series
+        - anime
         in: query
         name: type
+        type: string
+      - description: Anime title language (default romaji, used when MAL has no title
+          in that language)
+        enum:
+        - romaji
+        - english
+        - native
+        in: query
+        name: title
         type: string
       produces:
       - application/json
@@ -1691,8 +2257,9 @@ paths:
       tags:
       - watchlist
     get:
-      description: The user's watchlist, one page at a time. Filter by type or status,
-        sort however you like.
+      description: |-
+        The user's watchlist, one page at a time. Filter by type or status, sort however you like.
+        Anime has its own watchlist under /anime/watchlist, with the same endpoints.
       parameters:
       - default: 1
         description: Page number
@@ -1704,7 +2271,7 @@ paths:
         in: query
         name: per_page
         type: integer
-      - description: Filter by type
+      - description: Filter by type (not used by the anime watchlist)
         enum:
         - tv
         - movie
@@ -1817,8 +2384,10 @@ paths:
     put:
       consumes:
       - application/json
-      description: Adds the item, or replaces the whole thing if it's already there.
-        Use the progress/status endpoints for partial updates.
+      description: |-
+        Adds the item, or replaces the whole thing if it's already there. Use the progress/status endpoints for partial updates.
+        The anime watchlist takes type "anime", with the MyAnimeList id in `mal_id`. Item ids are shared
+        by both watchlists, so an id already used in the other one is rejected with a 409.
       parameters:
       - description: Item ID (e.g. t63174 or m533535)
         in: path
@@ -1844,6 +2413,12 @@ paths:
             type: object
         "401":
           description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
           schema:
             additionalProperties:
               type: string

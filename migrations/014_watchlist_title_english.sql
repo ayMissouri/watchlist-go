@@ -1,0 +1,1 @@
+ALTER TABLE watchlist_items ADD COLUMN IF NOT EXISTS title_english TEXT NOT NULL DEFAULT '';

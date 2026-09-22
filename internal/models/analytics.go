@@ -23,6 +23,7 @@ type UserEvent struct {
 	MediaType      string         `json:"media_type,omitempty"`
 	ImdbID         string         `json:"imdb_id,omitempty"`
 	Title          string         `json:"title,omitempty"`
+	TitleEnglish   string         `json:"title_english,omitempty"` // read-only, from the anime's watchlist item
 	Season         int            `json:"season,omitempty"`
 	Episode        int            `json:"episode,omitempty"`
 	RuntimeMinutes int            `json:"runtime_minutes,omitempty"`
@@ -86,6 +87,17 @@ type ProfileStats struct {
 	TopTitles        []LabelCount `json:"top_titles"`
 	FirstEventAt     int64        `json:"first_event_at,omitempty"`
 	LastEventAt      int64        `json:"last_event_at,omitempty"`
+	Watchlist        ProfileWatchlist `json:"watchlist"`
+}
+
+// ProfileWatchlist counts the whole watchlist, anime included.
+type ProfileWatchlist struct {
+	Titles          int `json:"titles"`
+	Shows           int `json:"shows"` // tv and anime series
+	Films           int `json:"films"` // anime films included
+	Completed       int `json:"completed"`
+	EpisodesWatched int `json:"episodes_watched"`
+	ShowsCompleted  int `json:"shows_completed"`
 }
 
 // WrappedStats is the year-in-review payload for GET /stats/wrapped.

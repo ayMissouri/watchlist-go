@@ -87,12 +87,19 @@ func (s *Service) enrich(eventID int64, imdbID, mediaType string) {
 }
 
 func (s *Service) lookupMeta(ctx context.Context, imdbID, mediaType string) (genres []string, year, runtime int) {
-	if mediaType == "movie" {
+	switch mediaType {
+	case "movie":
 		d, err := s.Meta.MovieDetail(ctx, imdbID)
 		if err != nil {
 			return nil, 0, 0
 		}
 		return pickGenres(d.Genres, d.Genre), parseYear(d.Year), parseRuntimeMinutes(d.Runtime)
+	case "anime":
+		d, err := s.Meta.AnimeDetail(ctx, imdbID, "")
+		if err != nil {
+			return nil, 0, 0
+		}
+		return d.Genres, parseYear(d.Year), parseRuntimeMinutes(d.Runtime)
 	}
 	d, err := s.Meta.SeriesDetail(ctx, imdbID)
 	if err != nil {

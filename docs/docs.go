@@ -21,6 +21,558 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/anime/watchlist": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "The user's watchlist, one page at a time. Filter by type or status, sort however you like.\nAnime has its own watchlist under /anime/watchlist, with the same endpoints.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "watchlist"
+                ],
+                "summary": "Get watchlist",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "tv",
+                            "movie"
+                        ],
+                        "type": "string",
+                        "description": "Filter by type (not used by the anime watchlist)",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "watching",
+                            "watched",
+                            "plan_to_watch",
+                            "paused",
+                            "dropped"
+                        ],
+                        "type": "string",
+                        "description": "Filter by status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "last_updated",
+                            "title"
+                        ],
+                        "type": "string",
+                        "description": "Sort field",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "description": "Sort order",
+                        "name": "order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.WatchlistResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes several items in one go and tells you how many actually went.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "watchlist"
+                ],
+                "summary": "Bulk delete watchlist items",
+                "parameters": [
+                    {
+                        "description": "List of item IDs to delete",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.BulkDeleteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "integer",
+                                "format": "int64"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/anime/watchlist/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a single watchlist item by ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "watchlist"
+                ],
+                "summary": "Get watchlist item",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Item ID (e.g. t63174 or m533535)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.WatchlistItem"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Adds the item, or replaces the whole thing if it's already there. Use the progress/status endpoints for partial updates.\nThe anime watchlist takes type \"anime\", with the MyAnimeList id in ` + "`" + `mal_id` + "`" + `. Item ids are shared\nby both watchlists, so an id already used in the other one is rejected with a 409.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "watchlist"
+                ],
+                "summary": "Add or update watchlist item",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Item ID (e.g. t63174 or m533535)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Watchlist item",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.WatchlistItem"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes a watchlist item by ID",
+                "tags": [
+                    "watchlist"
+                ],
+                "summary": "Remove watchlist item",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Item ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/anime/watchlist/{id}/plays": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Records one more completed watch of an item and marks it watched. This is the\n\"watch it again\" half of the checkbox prompt.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "watchlist"
+                ],
+                "summary": "Log another play",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Item ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.PlaysResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Drops the most recent play and the watch time that came with it. The item goes\nback to plan_to_watch once no plays are left.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "watchlist"
+                ],
+                "summary": "Undo the newest play",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Item ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.PlaysResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/anime/watchlist/{id}/progress": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Just bumps playback progress. Everything else on the item stays as it was.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "watchlist"
+                ],
+                "summary": "Update item progress",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Item ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Progress update",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.UpdateProgressRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/anime/watchlist/{id}/status": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Sets the watch status of an item (watching, watched, plan_to_watch, paused, dropped)",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "watchlist"
+                ],
+                "summary": "Update item status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Item ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Status update",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.UpdateStatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/auth/callback": {
             "get": {
                 "description": "Handles the Discord redirect, issues a JWT, and redirects to the frontend",
@@ -341,7 +893,7 @@ const docTemplate = `{
         },
         "/discover": {
             "get": {
-                "description": "Returns one catalog. Use ` + "`" + `sort` + "`" + ` (optionally with ` + "`" + `genre` + "`" + `) for popular/top-rated, ` + "`" + `year` + "`" + ` for a single release year, or ` + "`" + `provider` + "`" + ` for a streaming service. If you send more than one, ` + "`" + `provider` + "`" + ` wins over ` + "`" + `year` + "`" + `, which wins over ` + "`" + `sort` + "`" + `. Cached for an hour.",
+                "description": "Returns one catalog. Use ` + "`" + `sort` + "`" + ` (optionally with ` + "`" + `genre` + "`" + `) for popular/top-rated, ` + "`" + `year` + "`" + ` for a single release year, or ` + "`" + `provider` + "`" + ` for a streaming service. If you send more than one, ` + "`" + `provider` + "`" + ` wins over ` + "`" + `year` + "`" + `, which wins over ` + "`" + `sort` + "`" + `. Cached for an hour.\nAnime comes from MyAnimeList and only takes ` + "`" + `sort` + "`" + `, which also allows ` + "`" + `airing` + "`" + ` and ` + "`" + `upcoming` + "`" + ` there.",
                 "produces": [
                     "application/json"
                 ],
@@ -353,7 +905,8 @@ const docTemplate = `{
                     {
                         "enum": [
                             "movie",
-                            "series"
+                            "series",
+                            "anime"
                         ],
                         "type": "string",
                         "description": "Media type",
@@ -364,7 +917,9 @@ const docTemplate = `{
                     {
                         "enum": [
                             "popular",
-                            "top_rated"
+                            "top_rated",
+                            "airing",
+                            "upcoming"
                         ],
                         "type": "string",
                         "description": "Sort order (default popular)",
@@ -394,6 +949,17 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Streaming provider (overrides sort and year)",
                         "name": "provider",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "romaji",
+                            "english",
+                            "native"
+                        ],
+                        "type": "string",
+                        "description": "Anime title language (default romaji, used when MAL has no title in that language)",
+                        "name": "title",
                         "in": "query"
                     }
                 ],
@@ -475,6 +1041,12 @@ const docTemplate = `{
                         "default": 50,
                         "description": "Max events to return",
                         "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated media types to keep (tv, movie, anime)",
+                        "name": "media_type",
                         "in": "query"
                     },
                     {
@@ -759,6 +1331,111 @@ const docTemplate = `{
                 }
             }
         },
+        "/meta/anime/{id}": {
+            "get": {
+                "description": "Everything MyAnimeList has on an anime. There's no episode list, only the ` + "`" + `episodes` + "`" + ` count. Cached for a day.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "meta"
+                ],
+                "summary": "Get anime details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "MyAnimeList id (e.g. 5114)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "romaji",
+                            "english",
+                            "native"
+                        ],
+                        "type": "string",
+                        "description": "Anime title language (default romaji, used when MAL has no title in that language)",
+                        "name": "title",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.AnimeDetail"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/meta/anime/{id}/episodes": {
+            "get": {
+                "description": "The episode list for an anime, all seasons flattened into season 1, the way MyAnimeList counts them.\nTitles and air dates come from a self-hosted Jikan instance (JIKAN_URL). When that isn't configured\nor can't be reached, episodes come back numbered (\"Episode 1\") with no air date, so the count is\nstill right. Cached for a day.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "meta"
+                ],
+                "summary": "Get anime episodes",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "MyAnimeList id (e.g. 5114)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.EpisodesResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/meta/movie/{id}": {
             "get": {
                 "description": "Everything we know about a movie. Cached for a day.",
@@ -902,7 +1579,7 @@ const docTemplate = `{
         },
         "/meta/{type}/{id}/recommendations": {
             "get": {
-                "description": "What TMDB recommends alongside this movie or series, in the same shape as a discover catalog. Cached for a day.",
+                "description": "What TMDB (or MyAnimeList, for anime) recommends alongside this title, in the same shape as a discover catalog. Cached for a day.",
                 "produces": [
                     "application/json"
                 ],
@@ -914,7 +1591,8 @@ const docTemplate = `{
                     {
                         "enum": [
                             "movie",
-                            "series"
+                            "series",
+                            "anime"
                         ],
                         "type": "string",
                         "description": "Media type",
@@ -924,7 +1602,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "TMDB id (e.g. 278). IMDb ids like tt0111161 still work.",
+                        "description": "TMDB id (e.g. 278), MAL id for anime. IMDb ids like tt0111161 still work for movies and series.",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -1086,7 +1764,7 @@ const docTemplate = `{
         },
         "/search": {
             "get": {
-                "description": "Search by title. Leave ` + "`" + `type` + "`" + ` out and you get movies and shows mixed together, newest first.",
+                "description": "Search by title. Leave ` + "`" + `type` + "`" + ` out and you get movies and shows mixed together, newest first.\nAnime is only searched with ` + "`" + `type=anime` + "`" + ` (MyAnimeList needs at least 3 characters).",
                 "produces": [
                     "application/json"
                 ],
@@ -1105,11 +1783,23 @@ const docTemplate = `{
                     {
                         "enum": [
                             "movie",
-                            "series"
+                            "series",
+                            "anime"
                         ],
                         "type": "string",
                         "description": "Filter by type",
                         "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "romaji",
+                            "english",
+                            "native"
+                        ],
+                        "type": "string",
+                        "description": "Anime title language (default romaji, used when MAL has no title in that language)",
+                        "name": "title",
                         "in": "query"
                     }
                 ],
@@ -1252,7 +1942,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "The user's watchlist, one page at a time. Filter by type or status, sort however you like.",
+                "description": "The user's watchlist, one page at a time. Filter by type or status, sort however you like.\nAnime has its own watchlist under /anime/watchlist, with the same endpoints.",
                 "produces": [
                     "application/json"
                 ],
@@ -1281,7 +1971,7 @@ const docTemplate = `{
                             "movie"
                         ],
                         "type": "string",
-                        "description": "Filter by type",
+                        "description": "Filter by type (not used by the anime watchlist)",
                         "name": "type",
                         "in": "query"
                     },
@@ -1454,7 +2144,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Adds the item, or replaces the whole thing if it's already there. Use the progress/status endpoints for partial updates.",
+                "description": "Adds the item, or replaces the whole thing if it's already there. Use the progress/status endpoints for partial updates.\nThe anime watchlist takes type \"anime\", with the MyAnimeList id in ` + "`" + `mal_id` + "`" + `. Item ids are shared\nby both watchlists, so an id already used in the other one is rejected with a 409.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1498,6 +2188,15 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1790,6 +2489,73 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "github_com_ayMissouri_watchlist-go_git_internal_models.AnimeDetail": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "english_name": {
+                    "type": "string"
+                },
+                "episodes": {
+                    "description": "0 for unknown",
+                    "type": "integer"
+                },
+                "format": {
+                    "description": "tv, movie, ova, ona, special, music",
+                    "type": "string"
+                },
+                "genres": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "description": "MAL id",
+                    "type": "string"
+                },
+                "links": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Link"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "poster": {
+                    "type": "string"
+                },
+                "released": {
+                    "type": "string"
+                },
+                "runtime": {
+                    "description": "per episode",
+                    "type": "string"
+                },
+                "score": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "finished_airing, currently_airing, not_yet_aired",
+                    "type": "string"
+                },
+                "studios": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "type": {
+                    "type": "string"
+                },
+                "year": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_ayMissouri_watchlist-go_git_internal_models.BehaviorHints": {
             "type": "object",
             "properties": {
@@ -1976,6 +2742,10 @@ const docTemplate = `{
                 "title": {
                     "type": "string"
                 },
+                "title_english": {
+                    "description": "anime only",
+                    "type": "string"
+                },
                 "type": {
                     "type": "string"
                 },
@@ -2001,6 +2771,9 @@ const docTemplate = `{
                 "episode": {
                     "type": "integer"
                 },
+                "filler": {
+                    "type": "boolean"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -2009,6 +2782,9 @@ const docTemplate = `{
                 },
                 "overview": {
                     "type": "string"
+                },
+                "recap": {
+                    "type": "boolean"
                 },
                 "released": {
                     "type": "string"
@@ -2038,6 +2814,17 @@ const docTemplate = `{
                 },
                 "season": {
                     "type": "integer"
+                }
+            }
+        },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.EpisodesResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.Episode"
+                    }
                 }
             }
         },
@@ -2394,6 +3181,10 @@ const docTemplate = `{
                 "title": {
                     "type": "string"
                 },
+                "title_english": {
+                    "description": "anime only",
+                    "type": "string"
+                },
                 "type": {
                     "type": "string"
                 },
@@ -2460,6 +3251,34 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "watch_time_minutes": {
+                    "type": "integer"
+                },
+                "watchlist": {
+                    "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.ProfileWatchlist"
+                }
+            }
+        },
+        "github_com_ayMissouri_watchlist-go_git_internal_models.ProfileWatchlist": {
+            "type": "object",
+            "properties": {
+                "completed": {
+                    "type": "integer"
+                },
+                "episodes_watched": {
+                    "type": "integer"
+                },
+                "films": {
+                    "description": "anime films included",
+                    "type": "integer"
+                },
+                "shows": {
+                    "description": "tv and anime series",
+                    "type": "integer"
+                },
+                "shows_completed": {
+                    "type": "integer"
+                },
+                "titles": {
                     "type": "integer"
                 }
             }
@@ -2820,6 +3639,10 @@ const docTemplate = `{
                 "title": {
                     "type": "string"
                 },
+                "title_english": {
+                    "description": "read-only, from the anime's watchlist item",
+                    "type": "string"
+                },
                 "user_id": {
                     "type": "string"
                 }
@@ -2851,6 +3674,10 @@ const docTemplate = `{
                 "episodes_watched": {
                     "type": "integer"
                 },
+                "format": {
+                    "description": "anime only: tv, movie, ova, ...",
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -2865,6 +3692,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "last_updated": {
+                    "type": "integer"
+                },
+                "mal_id": {
                     "type": "integer"
                 },
                 "plays": {
@@ -2884,6 +3714,10 @@ const docTemplate = `{
                     "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_models.WatchlistStatus"
                 },
                 "title": {
+                    "type": "string"
+                },
+                "title_english": {
+                    "description": "anime only; Title is romaji",
                     "type": "string"
                 },
                 "tmdb_id": {

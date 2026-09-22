@@ -3,9 +3,12 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -23,16 +26,18 @@ type WatchlistHandler struct {
 	DB       *db.DB
 	Tracker  *tracking.Service
 	Calendar *calendar.Service
+	Types []string
 }
 
 // GetAll godoc
 // @Summary     Get watchlist
 // @Description The user's watchlist, one page at a time. Filter by type or status, sort however you like.
+// @Description Anime has its own watchlist under /anime/watchlist, with the same endpoints.
 // @Tags        watchlist
 // @Produce     json
 // @Param       page     query int    false "Page number"        default(1)
 // @Param       per_page query int    false "Items per page"     default(20)
-// @Param       type     query string false "Filter by type"     Enums(tv, movie)
+// @Param       type     query string false "Filter by type (not used by the anime watchlist)" Enums(tv, movie)
 // @Param       status   query string false "Filter by status"   Enums(watching, watched, plan_to_watch, paused, dropped)
 // @Param       sort     query string false "Sort field"         Enums(last_updated, title)
 // @Param       order    query string false "Sort order"         Enums(asc, desc)
@@ -40,9 +45,10 @@ type WatchlistHandler struct {
 // @Failure     401 {object} map[string]string
 // @Security    BearerAuth
 // @Router      /watchlist [get]
+// @Router      /anime/watchlist [get]
 func (h *WatchlistHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.ClaimsFromCtx(r)
-	q := parseWatchlistQuery(r)
+	q := parseWatchlistQuery(r, h.Types)
 
 	items, total, err := h.DB.GetWatchlist(r.Context(), claims.UserID, q)
 	if err != nil {
@@ -79,11 +85,12 @@ func (h *WatchlistHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 // @Failure     404 {object} map[string]string
 // @Security    BearerAuth
 // @Router      /watchlist/{id} [get]
+// @Router      /anime/watchlist/{id} [get]
 func (h *WatchlistHandler) GetOne(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.ClaimsFromCtx(r)
 	itemID := chi.URLParam(r, "id")
 
-	item, err := h.DB.GetItem(r.Context(), claims.UserID, itemID)
+	item, err := h.DB.GetItem(r.Context(), claims.UserID, itemID, h.Types)
 	if err != nil {
 		jsonError(w, "item not found", http.StatusNotFound)
 		return
@@ -95,6 +102,8 @@ func (h *WatchlistHandler) GetOne(w http.ResponseWriter, r *http.Request) {
 // Upsert godoc
 // @Summary     Add or update watchlist item
 // @Description Adds the item, or replaces the whole thing if it's already there. Use the progress/status endpoints for partial updates.
+// @Description The anime watchlist takes type "anime", with the MyAnimeList id in `mal_id`. Item ids are shared
+// @Description by both watchlists, so an id already used in the other one is rejected with a 409.
 // @Tags        watchlist
 // @Accept      json
 // @Produce     json
@@ -103,8 +112,10 @@ func (h *WatchlistHandler) GetOne(w http.ResponseWriter, r *http.Request) {
 // @Success     204
 // @Failure     400 {object} map[string]string
 // @Failure     401 {object} map[string]string
+// @Failure     409 {object} map[string]string
 // @Security    BearerAuth
 // @Router      /watchlist/{id} [put]
+// @Router      /anime/watchlist/{id} [put]
 func (h *WatchlistHandler) Upsert(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.ClaimsFromCtx(r)
 	itemID := chi.URLParam(r, "id")
@@ -117,8 +128,8 @@ func (h *WatchlistHandler) Upsert(w http.ResponseWriter, r *http.Request) {
 
 	item.ID = itemID
 
-	if item.Type != "tv" && item.Type != "movie" {
-		jsonError(w, `type must be "tv" or "movie"`, http.StatusBadRequest)
+	if !slices.Contains(h.Types, item.Type) {
+		jsonError(w, "type must be one of: "+strings.Join(h.Types, ", "), http.StatusBadRequest)
 		return
 	}
 	if item.Title == "" {
@@ -135,7 +146,11 @@ func (h *WatchlistHandler) Upsert(w http.ResponseWriter, r *http.Request) {
 		item.LastUpdated = time.Now().UnixMilli()
 	}
 
-	inserted, err := h.DB.UpsertItem(r.Context(), claims.UserID, &item)
+	inserted, err := h.DB.UpsertItem(r.Context(), claims.UserID, &item, h.Types)
+	if errors.Is(err, db.ErrOtherWatchlist) {
+		jsonError(w, "id is already used in your other watchlist", http.StatusConflict)
+		return
+	}
 	if err != nil {
 		jsonError(w, "could not save item", http.StatusInternalServerError)
 		return
@@ -275,6 +290,7 @@ func detailLink(mediaType, imdbID string) string {
 // @Failure     404 {object} map[string]string
 // @Security    BearerAuth
 // @Router      /watchlist/{id}/progress [patch]
+// @Router      /anime/watchlist/{id}/progress [patch]
 func (h *WatchlistHandler) UpdateProgress(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.ClaimsFromCtx(r)
 	itemID := chi.URLParam(r, "id")
@@ -291,7 +307,7 @@ func (h *WatchlistHandler) UpdateProgress(w http.ResponseWriter, r *http.Request
 	}
 
 	// Load the existing item so it only overwrites the progress fields
-	item, err := h.DB.GetItem(r.Context(), claims.UserID, itemID)
+	item, err := h.DB.GetItem(r.Context(), claims.UserID, itemID, h.Types)
 	if err != nil {
 		jsonError(w, "item not found", http.StatusNotFound)
 		return
@@ -332,7 +348,7 @@ func (h *WatchlistHandler) UpdateProgress(w http.ResponseWriter, r *http.Request
 		item.LastUpdated = time.Now().UnixMilli()
 	}
 
-	if _, err := h.DB.UpsertItem(r.Context(), claims.UserID, item); err != nil {
+	if _, err := h.DB.UpsertItem(r.Context(), claims.UserID, item, h.Types); err != nil {
 		jsonError(w, "could not update progress", http.StatusInternalServerError)
 		return
 	}
@@ -359,7 +375,7 @@ func (h *WatchlistHandler) trackProgress(r *http.Request, item *models.Watchlist
 		h.applyStatusPlay(r, item, prevStatus)
 	}
 
-	if item.Type != "tv" {
+	if item.Type == "movie" {
 		return
 	}
 
@@ -411,6 +427,7 @@ func derefInt(i *int) int {
 // @Failure     404 {object} map[string]string
 // @Security    BearerAuth
 // @Router      /watchlist/{id}/status [patch]
+// @Router      /anime/watchlist/{id}/status [patch]
 func (h *WatchlistHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.ClaimsFromCtx(r)
 	itemID := chi.URLParam(r, "id")
@@ -426,7 +443,7 @@ func (h *WatchlistHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	item, err := h.DB.GetItem(r.Context(), claims.UserID, itemID)
+	item, err := h.DB.GetItem(r.Context(), claims.UserID, itemID, h.Types)
 	if err != nil {
 		jsonError(w, "item not found", http.StatusNotFound)
 		return
@@ -436,7 +453,7 @@ func (h *WatchlistHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) 
 	item.Status = req.Status
 	item.LastUpdated = time.Now().UnixMilli()
 
-	if _, err := h.DB.UpsertItem(r.Context(), claims.UserID, item); err != nil {
+	if _, err := h.DB.UpsertItem(r.Context(), claims.UserID, item, h.Types); err != nil {
 		jsonError(w, "could not update status", http.StatusInternalServerError)
 		return
 	}
@@ -472,10 +489,11 @@ func (h *WatchlistHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) 
 // @Failure     404 {object} map[string]string
 // @Security    BearerAuth
 // @Router      /watchlist/{id}/plays [post]
+// @Router      /anime/watchlist/{id}/plays [post]
 func (h *WatchlistHandler) AddPlay(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.ClaimsFromCtx(r)
 
-	item, err := h.DB.GetItem(r.Context(), claims.UserID, chi.URLParam(r, "id"))
+	item, err := h.DB.GetItem(r.Context(), claims.UserID, chi.URLParam(r, "id"), h.Types)
 	if err != nil {
 		jsonError(w, "item not found", http.StatusNotFound)
 		return
@@ -485,7 +503,7 @@ func (h *WatchlistHandler) AddPlay(w http.ResponseWriter, r *http.Request) {
 		prev := item.Status
 		item.Status = models.StatusWatched
 		item.LastUpdated = time.Now().UnixMilli()
-		if _, err := h.DB.UpsertItem(r.Context(), claims.UserID, item); err != nil {
+		if _, err := h.DB.UpsertItem(r.Context(), claims.UserID, item, h.Types); err != nil {
 			jsonError(w, "could not log play", http.StatusInternalServerError)
 			return
 		}
@@ -514,10 +532,11 @@ func (h *WatchlistHandler) AddPlay(w http.ResponseWriter, r *http.Request) {
 // @Failure     404 {object} map[string]string
 // @Security    BearerAuth
 // @Router      /watchlist/{id}/plays [delete]
+// @Router      /anime/watchlist/{id}/plays [delete]
 func (h *WatchlistHandler) RemovePlay(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.ClaimsFromCtx(r)
 
-	item, err := h.DB.GetItem(r.Context(), claims.UserID, chi.URLParam(r, "id"))
+	item, err := h.DB.GetItem(r.Context(), claims.UserID, chi.URLParam(r, "id"), h.Types)
 	if err != nil {
 		jsonError(w, "item not found", http.StatusNotFound)
 		return
@@ -529,7 +548,7 @@ func (h *WatchlistHandler) RemovePlay(w http.ResponseWriter, r *http.Request) {
 		prev := item.Status
 		item.Status = models.StatusPlanToWatch
 		item.LastUpdated = time.Now().UnixMilli()
-		if _, err := h.DB.UpsertItem(r.Context(), claims.UserID, item); err != nil {
+		if _, err := h.DB.UpsertItem(r.Context(), claims.UserID, item, h.Types); err != nil {
 			jsonError(w, "could not undo play", http.StatusInternalServerError)
 			return
 		}
@@ -556,13 +575,14 @@ func (h *WatchlistHandler) RemovePlay(w http.ResponseWriter, r *http.Request) {
 // @Failure     404 {object} map[string]string
 // @Security    BearerAuth
 // @Router      /watchlist/{id} [delete]
+// @Router      /anime/watchlist/{id} [delete]
 func (h *WatchlistHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.ClaimsFromCtx(r)
 	itemID := chi.URLParam(r, "id")
 
-	removed, _ := h.DB.GetItem(r.Context(), claims.UserID, itemID)
+	removed, _ := h.DB.GetItem(r.Context(), claims.UserID, itemID, h.Types)
 
-	if err := h.DB.DeleteItem(r.Context(), claims.UserID, itemID); err != nil {
+	if err := h.DB.DeleteItem(r.Context(), claims.UserID, itemID, h.Types); err != nil {
 		if err.Error() == "not found" {
 			jsonError(w, "item not found", http.StatusNotFound)
 			return
@@ -597,6 +617,7 @@ func (h *WatchlistHandler) Delete(w http.ResponseWriter, r *http.Request) {
 // @Failure     401 {object} map[string]string
 // @Security    BearerAuth
 // @Router      /watchlist [delete]
+// @Router      /anime/watchlist [delete]
 func (h *WatchlistHandler) BulkDelete(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.ClaimsFromCtx(r)
 
@@ -611,7 +632,7 @@ func (h *WatchlistHandler) BulkDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	deleted, err := h.DB.BulkDeleteItems(r.Context(), claims.UserID, req.IDs)
+	deleted, err := h.DB.BulkDeleteItems(r.Context(), claims.UserID, req.IDs, h.Types)
 	if err != nil {
 		jsonError(w, "could not delete items", http.StatusInternalServerError)
 		return

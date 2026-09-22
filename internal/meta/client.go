@@ -52,6 +52,10 @@ type Client struct {
 	region     string
 	sem        chan struct{}
 
+	malBaseURL  string
+	malClientID string
+	jikanBaseURL string
+
 	mu    sync.RWMutex
 	cache map[string]cacheEntry
 	finds sync.Map
@@ -62,7 +66,17 @@ func NewClient() *Client {
 	if key == "" {
 		log.Print("meta: TMDB_API_KEY is not set, every TMDB call will fail")
 	}
-	return newClient("https://api.themoviedb.org/3", key, cmp.Or(os.Getenv("TMDB_REGION"), "US"))
+	c := newClient("https://api.themoviedb.org/3", key, cmp.Or(os.Getenv("TMDB_REGION"), "US"))
+	c.malBaseURL = "https://api.myanimelist.net/v2"
+	c.malClientID = os.Getenv("MAL_CLIENT_ID")
+	if c.malClientID == "" {
+		log.Print("meta: MAL_CLIENT_ID is not set, every MyAnimeList call will fail")
+	}
+	c.jikanBaseURL = strings.TrimSuffix(os.Getenv("JIKAN_URL"), "/")
+	if c.jikanBaseURL == "" {
+		log.Print("meta: JIKAN_URL is not set, anime episode lists will only be numbered")
+	}
+	return c
 }
 
 func newClient(baseURL, apiKey, region string) *Client {
@@ -80,8 +94,15 @@ func (c *Client) get(ctx context.Context, path string, q url.Values, out any) er
 	params := url.Values{}
 	maps.Copy(params, q)
 	params.Set("api_key", c.apiKey)
-	u := c.baseURL + path + "?" + params.Encode()
+	return c.fetch(ctx, c.baseURL+path+"?"+params.Encode(), path, nil, out)
+}
 
+func (c *Client) malGet(ctx context.Context, path string, q url.Values, out any) error {
+	hdr := http.Header{"X-MAL-CLIENT-ID": {c.malClientID}}
+	return c.fetch(ctx, c.malBaseURL+path+"?"+q.Encode(), path, hdr, out)
+}
+
+func (c *Client) fetch(ctx context.Context, u, path string, hdr http.Header, out any) error {
 	select {
 	case c.sem <- struct{}{}:
 	case <-ctx.Done():
@@ -89,23 +110,24 @@ func (c *Client) get(ctx context.Context, path string, q url.Values, out any) er
 	}
 	defer func() { <-c.sem }()
 
-	err := c.getOnce(ctx, u, path, out)
+	err := c.getOnce(ctx, u, path, hdr, out)
 	if errors.Is(err, errRateLimited) {
 		select {
 		case <-time.After(retryDelay):
 		case <-ctx.Done():
 			return ctx.Err()
 		}
-		err = c.getOnce(ctx, u, path, out)
+		err = c.getOnce(ctx, u, path, hdr, out)
 	}
 	return err
 }
 
-func (c *Client) getOnce(ctx context.Context, u, path string, out any) error {
+func (c *Client) getOnce(ctx context.Context, u, path string, hdr http.Header, out any) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return fmt.Errorf("build request: %w", err)
 	}
+	maps.Copy(req.Header, hdr)
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("fetch %s: %w", path, err)
@@ -119,7 +141,7 @@ func (c *Client) getOnce(ctx context.Context, u, path string, out any) error {
 	case http.StatusTooManyRequests:
 		return errRateLimited
 	default:
-		return fmt.Errorf("tmdb returned %d for %s", resp.StatusCode, path)
+		return fmt.Errorf("upstream returned %d for %s", resp.StatusCode, path)
 	}
 	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
 		return fmt.Errorf("decode %s: %w", path, err)
@@ -605,7 +627,7 @@ func yearOf(date string) string {
 }
 
 func rating(avg float64, votes int) string {
-	if votes == 0 {
+	if votes == 0 || avg == 0 {
 		return ""
 	}
 	return strconv.FormatFloat(avg, 'f', 1, 64)

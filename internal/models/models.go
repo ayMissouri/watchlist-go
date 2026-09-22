@@ -48,9 +48,12 @@ func (s WatchlistStatus) Valid() bool {
 type WatchlistItem struct {
 	ID           string          `json:"id"`
 	TmdbID       int             `json:"tmdb_id,omitempty"`
+	MalID        int             `json:"mal_id,omitempty"`
 	ImdbID       string          `json:"imdb_id,omitempty"`
 	Type         string          `json:"type"`
 	Title        string          `json:"title"`
+	TitleEnglish string          `json:"title_english,omitempty"` // anime only; Title is romaji
+	Format       string          `json:"format,omitempty"`        // anime only: tv, movie, ova, ...
 	PosterPath   string          `json:"poster_path,omitempty"`
 	BackdropPath string          `json:"backdrop_path,omitempty"`
 	Status       WatchlistStatus `json:"status"`
@@ -112,20 +115,21 @@ type WatchlistResponse struct {
 type WatchlistQuery struct {
 	Page    int
 	PerPage int
-	Type    string // "tv", "movie", or "" for all
-	Status  string // "watching", "watched", "plan_to_watch", "paused", "dropped", or "" for all
-	Sort    string // "last_updated", "title"
-	Order   string // "asc", "desc"
+	Types   []string
+	Status  string   // "watching", "watched", "plan_to_watch", "paused", "dropped", or "" for all
+	Sort    string   // "last_updated", "title"
+	Order   string   // "asc", "desc"
 }
 
 type DiscoverItem struct {
-	ID         string `json:"id"`
-	Type       string `json:"type"`
-	Title      string `json:"title"`
-	Poster     string `json:"poster,omitempty"`
-	Background string `json:"background,omitempty"`
-	ImdbRating string `json:"imdb_rating,omitempty"`
-	Year       string `json:"year,omitempty"`
+	ID           string `json:"id"`
+	Type         string `json:"type"`
+	Title        string `json:"title"`
+	TitleEnglish string `json:"title_english,omitempty"` // anime only
+	Poster       string `json:"poster,omitempty"`
+	Background   string `json:"background,omitempty"`
+	ImdbRating   string `json:"imdb_rating,omitempty"`
+	Year         string `json:"year,omitempty"`
 }
 
 type DiscoverResponse struct {
@@ -171,6 +175,12 @@ type Episode struct {
 	Thumbnail  string `json:"thumbnail,omitempty"`
 	Overview   string `json:"overview,omitempty"`
 	ImdbRating string `json:"imdbRating,omitempty"`
+	Filler bool `json:"filler,omitempty"`
+	Recap  bool `json:"recap,omitempty"`
+}
+
+type EpisodesResponse struct {
+	Items []Episode `json:"items"`
 }
 
 type Credit struct {
@@ -237,6 +247,25 @@ type SeriesDetail struct {
 	MovieDetail
 	Status string `json:"status,omitempty"`
 	TvdbID *int   `json:"tvdb_id,omitempty"`
+}
+
+type AnimeDetail struct {
+	ID          string   `json:"id"` // MAL id
+	Type        string   `json:"type"`
+	Name        string   `json:"name"`
+	EnglishName string   `json:"english_name,omitempty"`
+	Format      string   `json:"format,omitempty"` // tv, movie, ova, ona, special, music
+	Status      string   `json:"status,omitempty"` // finished_airing, currently_airing, not_yet_aired
+	Year        string   `json:"year,omitempty"`
+	Released    string   `json:"released,omitempty"`
+	Episodes    int      `json:"episodes,omitempty"` // 0 for unknown
+	Runtime     string   `json:"runtime,omitempty"`  // per episode
+	Description string   `json:"description,omitempty"`
+	Genres      []string `json:"genres,omitempty"`
+	Studios     []string `json:"studios,omitempty"`
+	Score       string   `json:"score,omitempty"`
+	Poster      string   `json:"poster,omitempty"`
+	Links       []Link   `json:"links,omitempty"`
 }
 
 type MetaDetailResponse struct {

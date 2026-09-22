@@ -28,6 +28,18 @@ func TestHealthRoute_NoDB(t *testing.T) {
 	}
 }
 
+func TestAnimeWatchlistMounted(t *testing.T) {
+	router := NewRouter(&db.DB{}, meta.NewClient())
+
+	for _, path := range []string{"/anime/watchlist", "/anime/watchlist/5114"} {
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
+		if rr.Code != http.StatusUnauthorized {
+			t.Errorf("%s: expected 401 from the auth middleware, got %d", path, rr.Code)
+		}
+	}
+}
+
 func TestLobbyRoutes(t *testing.T) {
 	t.Setenv("JWT_SECRET", "test-secret-that-is-long-enough-for-hs256")
 	token, err := auth.IssueJWT("u1", "alice")

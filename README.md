@@ -44,6 +44,8 @@ Copy `.env.example` to `.env` and fill in the values:
 | `DISCORD_CLIENT_SECRET` | From the Discord developer portal |
 | `DISCORD_REDIRECT_URL` | Must match what's set in Discord (`/auth/callback`) |
 | `FRONTEND_URL` | Frontend origin, used for CORS and the post-login redirect (default `http://localhost:3000`) |
+| `MAL_CLIENT_ID` | MyAnimeList API client id, for anime metadata |
+| `JIKAN_URL` | For anime episode lists |
 
 ### Run the database
 

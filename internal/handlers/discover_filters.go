@@ -32,6 +32,10 @@ var streamingProviders = map[string]int{
 	"hbomax": 1899, "hbm": 1899,
 }
 
+var animeRankings = map[string]string{
+	"popular": "bypopularity", "top_rated": "all", "airing": "airing", "upcoming": "upcoming",
+}
+
 func providerID(provider string) (int, bool) {
 	id, ok := streamingProviders[provider]
 	return id, ok

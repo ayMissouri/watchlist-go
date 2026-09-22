@@ -35,6 +35,10 @@ func (s *Service) Profile(ctx context.Context, userID string) (models.ProfileSta
 	if err != nil {
 		return models.ProfileStats{}, err
 	}
+	watchlist, err := s.DB.GetWatchlistTotals(ctx, userID)
+	if err != nil {
+		return models.ProfileStats{}, err
+	}
 
 	return models.ProfileStats{
 		TotalEvents:       totals.Total,
@@ -49,6 +53,7 @@ func (s *Service) Profile(ctx context.Context, userID string) (models.ProfileSta
 		TopTitles:         titles,
 		FirstEventAt:      totals.FirstAt,
 		LastEventAt:       totals.LastAt,
+		Watchlist:         watchlist,
 	}, nil
 }
 
