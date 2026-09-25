@@ -2733,6 +2733,9 @@
                 "poster": {
                     "type": "string"
                 },
+                "release_date": {
+                    "type": "string"
+                },
                 "title": {
                     "type": "string"
                 },
@@ -3170,6 +3173,9 @@
                     "type": "string"
                 },
                 "poster": {
+                    "type": "string"
+                },
+                "release_date": {
                     "type": "string"
                 },
                 "title": {

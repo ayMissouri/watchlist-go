@@ -2739,6 +2739,9 @@ const docTemplate = `{
                 "poster": {
                     "type": "string"
                 },
+                "release_date": {
+                    "type": "string"
+                },
                 "title": {
                     "type": "string"
                 },
@@ -3176,6 +3179,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "poster": {
+                    "type": "string"
+                },
+                "release_date": {
                     "type": "string"
                 },
                 "title": {
