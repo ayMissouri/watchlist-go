@@ -289,7 +289,7 @@ func (d *DB) BulkDeleteItems(ctx context.Context, userID string, ids, types []st
 
 const notificationsLimit = 50
 
-func (d *DB) CreateNotification(ctx context.Context, userID string, n *models.Notification) error {
+func (d *DB) NotifyReleased(ctx context.Context, entryID int64, n *models.Notification) error {
 	if n.Type == "" {
 		n.Type = "general"
 	}
@@ -297,9 +297,10 @@ func (d *DB) CreateNotification(ctx context.Context, userID string, n *models.No
 		n.CreatedAt = time.Now().UnixMilli()
 	}
 	_, err := d.Pool.Exec(ctx, `
+		WITH claimed AS (DELETE FROM calendar_entries WHERE id = $1 RETURNING user_id)
 		INSERT INTO notifications (user_id, type, title, body, poster_path, link, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-	`, userID, n.Type, n.Title, n.Body, n.PosterPath, n.Link, n.CreatedAt)
+		SELECT user_id, $2, $3, $4, $5, $6, $7 FROM claimed
+	`, entryID, n.Type, n.Title, n.Body, n.PosterPath, n.Link, n.CreatedAt)
 	return err
 }
 
@@ -477,11 +478,6 @@ func (d *DB) GetDueCalendarEntriesForUser(ctx context.Context, userID string) ([
 		entries = append(entries, e)
 	}
 	return entries, rows.Err()
-}
-
-func (d *DB) DeleteCalendarEntry(ctx context.Context, id int64) error {
-	_, err := d.Pool.Exec(ctx, `DELETE FROM calendar_entries WHERE id = $1`, id)
-	return err
 }
 
 func scanCalendarRows(rows pgx.Rows) ([]models.CalendarEntry, error) {

@@ -135,12 +135,8 @@ func (s *Service) ProcessReleasedForUser(ctx context.Context, userID string) err
 			PosterPath: e.PosterPath,
 			Link:       detailLink(e.MediaType, e.ImdbID),
 		}
-		if err := s.DB.CreateNotification(ctx, e.UserID, n); err != nil {
+		if err := s.DB.NotifyReleased(ctx, e.ID, n); err != nil {
 			log.Printf("calendar: notify user %s for entry %d: %v", e.UserID, e.ID, err)
-			continue
-		}
-		if err := s.DB.DeleteCalendarEntry(ctx, e.ID); err != nil {
-			log.Printf("calendar: delete released entry %d: %v", e.ID, err)
 		}
 	}
 	return nil
