@@ -32,18 +32,25 @@ func (c *Client) AnimeEpisodes(ctx context.Context, id string) ([]models.Episode
 	}
 	malID := strconv.Itoa(n)
 
+	var jikanErr error
 	if c.jikanBaseURL != "" {
 		eps, err := cached(c, "anime/"+malID+"/episodes", detailCacheTTL, func() ([]models.Episode, error) {
 			return c.jikanEpisodes(ctx, malID)
 		})
 		switch {
 		case err != nil:
+			jikanErr = err
 			log.Printf("meta: jikan episodes for anime %s: %v", malID, err)
 		case len(eps) > 0:
 			return eps, nil
 		}
 	}
-	return c.numberedEpisodes(ctx, malID)
+	eps, err := c.numberedEpisodes(ctx, malID)
+	
+	if err == nil && len(eps) == 0 && jikanErr != nil {
+		return nil, fmt.Errorf("no episode count from MAL and jikan failed: %v", jikanErr)
+	}
+	return eps, err
 }
 
 func (c *Client) jikanEpisodes(ctx context.Context, malID string) ([]models.Episode, error) {

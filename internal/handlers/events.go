@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/ayMissouri/watchlist-go.git/internal/db"
 	"github.com/ayMissouri/watchlist-go.git/internal/middleware"
@@ -58,6 +59,7 @@ func (h *EventsHandler) Record(w http.ResponseWriter, r *http.Request) {
 // @Produce     json
 // @Param       limit query int false "Max events to return" default(50)
 // @Param       media_type query string false "Comma-separated media types to keep (tv, movie, anime)"
+// @Param       event_type query string false "Comma-separated event types to keep (e.g. movie_watch,episode_watch,status_change)"
 // @Param       from  query int false "Only include events at or after this Unix ms timestamp"
 // @Param       to    query int false "Only include events strictly before this Unix ms timestamp"
 // @Success     200 {object} models.EventsResponse
@@ -82,7 +84,14 @@ func (h *EventsHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	mediaTypes := parseMediaTypes(r.URL.Query().Get("media_type"))
 
-	items, err := h.DB.GetEvents(r.Context(), claims.UserID, limit, from, to, mediaTypes)
+	var eventTypes []string
+	for t := range strings.SplitSeq(r.URL.Query().Get("event_type"), ",") {
+		if t != "" {
+			eventTypes = append(eventTypes, t)
+		}
+	}
+
+	items, err := h.DB.GetEvents(r.Context(), claims.UserID, limit, from, to, mediaTypes, eventTypes)
 	if err != nil {
 		jsonError(w, "could not fetch events", http.StatusInternalServerError)
 		return

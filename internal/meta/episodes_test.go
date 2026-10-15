@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/ayMissouri/watchlist-go.git/internal/models"
 )
@@ -66,6 +67,13 @@ func TestAnimeEpisodes(t *testing.T) {
 	}
 	if len(eps) != 64 || eps[63].Title != "Episode 64" || eps[63].ID != "5114:1:64" || eps[63].Released != "" {
 		t.Errorf("fallback: got %d episodes, last %+v", len(eps), eps[len(eps)-1])
+	}
+
+	c.mu.Lock()
+	c.cache["/anime/21"] = cacheEntry{val: &malAnime{malNode: malNode{ID: 21}}, expiresAt: time.Now().Add(time.Hour)}
+	c.mu.Unlock()
+	if eps, err := c.AnimeEpisodes(t.Context(), "21"); err == nil || errors.Is(err, ErrNotFound) {
+		t.Errorf("airing anime, jikan down: got %d episodes, err %v, want a non-404 error", len(eps), err)
 	}
 
 	fail, empty = false, true

@@ -105,7 +105,7 @@ func (d *DB) EnrichEvent(ctx context.Context, id int64, genres []string, release
 	return err
 }
 
-func (d *DB) GetEvents(ctx context.Context, userID string, limit int, fromMs, toMs int64, mediaTypes []string) ([]models.UserEvent, error) {
+func (d *DB) GetEvents(ctx context.Context, userID string, limit int, fromMs, toMs int64, mediaTypes, eventTypes []string) ([]models.UserEvent, error) {
 	if fromMs < 0 {
 		fromMs = 0
 	}
@@ -122,9 +122,10 @@ func (d *DB) GetEvents(ctx context.Context, userID string, limit int, fromMs, to
 		  AND (EXTRACT(EPOCH FROM e.occurred_at) * 1000)::BIGINT >= $2
 		  AND (EXTRACT(EPOCH FROM e.occurred_at) * 1000)::BIGINT <  $3
 		  AND ($5::text[] IS NULL OR e.media_type = ANY($5))
+		  AND ($6::text[] IS NULL OR e.event_type = ANY($6))
 		ORDER BY e.occurred_at DESC
 		LIMIT $4
-	`, userID, fromMs, toMs, limit, nullStrings(mediaTypes))
+	`, userID, fromMs, toMs, limit, nullStrings(mediaTypes), nullStrings(eventTypes))
 	if err != nil {
 		return nil, err
 	}
