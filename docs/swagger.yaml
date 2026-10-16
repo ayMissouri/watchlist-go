@@ -1,5 +1,16 @@
 basePath: /
 definitions:
+  github_com_ayMissouri_watchlist-go_git_internal_gemini.Request:
+    properties:
+      instructions:
+        type: string
+      max_tokens:
+        type: integer
+      prompt:
+        type: string
+      schema:
+        type: object
+    type: object
   github_com_ayMissouri_watchlist-go_git_internal_models.AnimeDetail:
     properties:
       description:
@@ -932,6 +943,69 @@ info:
   title: Watchlist API
   version: "1.0"
 paths:
+  /ami:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        One step of an AMI (aWatch Media Intelligence) question: Gemini reads `prompt` under `instructions` and replies with JSON that follows `schema`, a JSON Schema object. The apps make two calls per question, one to read the request and one to answer it. When a model is busy or out of its free quota the next one answers.
+        Only for accounts with watch access, and limited to 40 calls per 10 minutes per account. Errors: `no_access` (403, the account can't watch), `slow_down` (429, that limit), `crowded` (429, Gemini's quota frees up within a minute or so), `exhausted` (429, it doesn't), `blocked` (422, the model wouldn't answer), `busy` (503), `unavailable` (503, no working key).
+      parameters:
+      - description: The step
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_ayMissouri_watchlist-go_git_internal_gemini.Request'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: The model's reply, shaped by the schema
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Unprocessable Entity
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "429":
+          description: Too Many Requests
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: Service Unavailable
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Ask AMI's model
+      tags:
+      - ami
   /anime/watchlist:
     delete:
       consumes:
@@ -1623,6 +1697,10 @@ paths:
       - description: Comma-separated media types to keep (tv, movie, anime)
         in: query
         name: media_type
+        type: string
+      - description: Comma-separated event types to keep (e.g. movie_watch,episode_watch,status_change)
+        in: query
+        name: event_type
         type: string
       - description: Only include events at or after this Unix ms timestamp
         in: query

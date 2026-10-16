@@ -40,6 +40,16 @@ func TestAnimeWatchlistMounted(t *testing.T) {
 	}
 }
 
+func TestAMINeedsSignIn(t *testing.T) {
+	router := NewRouter(&db.DB{}, meta.NewClient())
+
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/ami", strings.NewReader(`{}`)))
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 from the auth middleware, got %d %s", rr.Code, rr.Body)
+	}
+}
+
 func TestLobbyRoutes(t *testing.T) {
 	t.Setenv("JWT_SECRET", "test-secret-that-is-long-enough-for-hs256")
 	token, err := auth.IssueJWT("u1", "alice")

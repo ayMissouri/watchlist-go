@@ -12,6 +12,7 @@ import (
 	_ "github.com/ayMissouri/watchlist-go.git/docs"
 	"github.com/ayMissouri/watchlist-go.git/internal/calendar"
 	"github.com/ayMissouri/watchlist-go.git/internal/db"
+	"github.com/ayMissouri/watchlist-go.git/internal/gemini"
 	"github.com/ayMissouri/watchlist-go.git/internal/handlers"
 	"github.com/ayMissouri/watchlist-go.git/internal/lobby"
 	"github.com/ayMissouri/watchlist-go.git/internal/meta"
@@ -48,7 +49,10 @@ func NewRouter(database *db.DB, metaClient *meta.Client) http.Handler {
 	}
 	lobbyHandler := &handlers.LobbyHandler{DB: database, Lobbies: lobby.NewManager()}
 
+	amiHandler := handlers.NewAMIHandler(database, gemini.NewClient(os.Getenv("GEMINI_API_KEY")))
+
 	r.With(middleware.RequireAuth).Get("/lobbies/{code}/stream", lobbyHandler.Stream)
+	r.With(middleware.RequireAuth).Post("/ami", amiHandler.Generate)
 
 	r.Group(func(r chi.Router) {
 		r.Use(chimiddleware.Timeout(30 * time.Second))

@@ -15,6 +15,100 @@
     "host": "localhost:8080",
     "basePath": "/",
     "paths": {
+        "/ami": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "One step of an AMI (aWatch Media Intelligence) question: Gemini reads `prompt` under `instructions` and replies with JSON that follows `schema`, a JSON Schema object. The apps make two calls per question, one to read the request and one to answer it. When a model is busy or out of its free quota the next one answers.\nOnly for accounts with watch access, and limited to 40 calls per 10 minutes per account. Errors: `no_access` (403, the account can't watch), `slow_down` (429, that limit), `crowded` (429, Gemini's quota frees up within a minute or so), `exhausted` (429, it doesn't), `blocked` (422, the model wouldn't answer), `busy` (503), `unavailable` (503, no working key).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ami"
+                ],
+                "summary": "Ask AMI's model",
+                "parameters": [
+                    {
+                        "description": "The step",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ayMissouri_watchlist-go_git_internal_gemini.Request"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The model's reply, shaped by the schema",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/anime/watchlist": {
             "get": {
                 "security": [
@@ -1041,6 +1135,12 @@
                         "type": "string",
                         "description": "Comma-separated media types to keep (tv, movie, anime)",
                         "name": "media_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated event types to keep (e.g. movie_watch,episode_watch,status_change)",
+                        "name": "event_type",
                         "in": "query"
                     },
                     {
@@ -2483,6 +2583,23 @@
         }
     },
     "definitions": {
+        "github_com_ayMissouri_watchlist-go_git_internal_gemini.Request": {
+            "type": "object",
+            "properties": {
+                "instructions": {
+                    "type": "string"
+                },
+                "max_tokens": {
+                    "type": "integer"
+                },
+                "prompt": {
+                    "type": "string"
+                },
+                "schema": {
+                    "type": "object"
+                }
+            }
+        },
         "github_com_ayMissouri_watchlist-go_git_internal_models.AnimeDetail": {
             "type": "object",
             "properties": {
