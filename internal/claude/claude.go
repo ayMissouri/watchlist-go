@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -49,6 +50,8 @@ func (c *Client) Generate(ctx context.Context, req gemini.Request) (json.RawMess
 		},
 	})
 	if err != nil {
+		// The apps only see a code, so the API's reason is kept here.
+		log.Printf("claude: %v", err)
 		return nil, errorFor(err)
 	}
 	if msg.StopReason == anthropic.StopReasonRefusal {
@@ -63,6 +66,7 @@ func (c *Client) Generate(ctx context.Context, req gemini.Request) (json.RawMess
 	reply := json.RawMessage(text.String())
 	// Stopped at the token cap partway through.
 	if msg.StopReason == anthropic.StopReasonMaxTokens || !json.Valid(reply) {
+		log.Printf("claude: no JSON reply, stopped with %s after %d output tokens", msg.StopReason, msg.Usage.OutputTokens)
 		return nil, &gemini.Error{Kind: gemini.Unavailable}
 	}
 	return reply, nil
