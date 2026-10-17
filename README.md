@@ -46,6 +46,7 @@ Copy `.env.example` to `.env` and fill in the values:
 | `FRONTEND_URL` | Frontend origin, used for CORS and the post-login redirect (default `http://localhost:3000`) |
 | `MAL_CLIENT_ID` | MyAnimeList API client id, for anime metadata |
 | `JIKAN_URL` | For anime episode lists |
+| `ANTHROPIC_API_KEY` | Claude key for AMI (`POST /ami`)  |
 | `GEMINI_API_KEY` | Google Gemini key for AMI (`POST /ami`) |
 
 ### Run the database

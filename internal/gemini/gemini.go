@@ -93,7 +93,7 @@ type Client struct {
 // NewClient answers with the free-tier models. An empty key leaves it unconfigured.
 func NewClient(key string) *Client {
 	if key == "" {
-		log.Print("gemini: GEMINI_API_KEY is not set, AMI will answer 503")
+		log.Print("gemini: neither ANTHROPIC_API_KEY nor GEMINI_API_KEY is set, AMI will answer 503")
 	}
 	return &Client{
 		key:        key,

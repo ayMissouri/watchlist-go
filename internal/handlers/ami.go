@@ -26,18 +26,25 @@ const (
 	amiTimeout = 60 * time.Second
 )
 
-// AMIHandler runs AMI's model calls for the apps, so the Gemini key stays on
-// the server. AMI is for accounts with watch access, like playback.
+// AMIModel answers AMI's steps: a *gemini.Client or a *claude.Client, both
+// failing with *gemini.Error.
+type AMIModel interface {
+	Configured() bool
+	Generate(ctx context.Context, req gemini.Request) (json.RawMessage, error)
+}
+
+// AMIHandler runs AMI's model calls for the apps, so the API key stays on the
+// server. AMI is for accounts with watch access, like playback.
 type AMIHandler struct {
-	Gemini *gemini.Client
+	Model AMIModel
 	limit  *windowLimiter
 	// hasAccess reports whether the account may watch (users.has_access).
 	hasAccess func(ctx context.Context, userID string) (bool, error)
 }
 
-func NewAMIHandler(database *db.DB, client *gemini.Client) *AMIHandler {
+func NewAMIHandler(database *db.DB, model AMIModel) *AMIHandler {
 	return &AMIHandler{
-		Gemini: client,
+		Model: model,
 		limit:  newWindowLimiter(amiCallLimit, amiCallWindow),
 		hasAccess: func(ctx context.Context, userID string) (bool, error) {
 			user, err := database.GetUser(ctx, userID)
@@ -51,8 +58,8 @@ func NewAMIHandler(database *db.DB, client *gemini.Client) *AMIHandler {
 
 // Generate godoc
 // @Summary     Ask AMI's model
-// @Description One step of an AMI (aWatch Media Intelligence) question: Gemini reads `prompt` under `instructions` and replies with JSON that follows `schema`, a JSON Schema object. The apps make two calls per question, one to read the request and one to answer it. When a model is busy or out of its free quota the next one answers.
-// @Description Only for accounts with watch access, and limited to 40 calls per 10 minutes per account. Errors: `no_access` (403, the account can't watch), `slow_down` (429, that limit), `crowded` (429, Gemini's quota frees up within a minute or so), `exhausted` (429, it doesn't), `blocked` (422, the model wouldn't answer), `busy` (503), `unavailable` (503, no working key).
+// @Description One step of an AMI (aWatch Media Intelligence) question: the model (Claude Haiku 5.5 when ANTHROPIC_API_KEY is set, otherwise Gemini) reads `prompt` under `instructions` and replies with JSON that follows `schema`, a JSON Schema object. The apps make two calls per question, one to read the request and one to answer it. On Gemini, when a model is busy or out of its free quota the next one answers.
+// @Description Only for accounts with watch access, and limited to 40 calls per 10 minutes per account. Errors: `no_access` (403, the account can't watch), `slow_down` (429, that limit), `crowded` (429, the quota frees up within a minute or so), `exhausted` (429, it doesn't), `blocked` (422, the model wouldn't answer), `busy` (503), `unavailable` (503, no working key).
 // @Tags        ami
 // @Accept      json
 // @Produce     json
@@ -67,7 +74,7 @@ func NewAMIHandler(database *db.DB, client *gemini.Client) *AMIHandler {
 // @Security    BearerAuth
 // @Router      /ami [post]
 func (h *AMIHandler) Generate(w http.ResponseWriter, r *http.Request) {
-	if !h.Gemini.Configured() {
+	if !h.Model.Configured() {
 		jsonError(w, "unavailable", http.StatusServiceUnavailable)
 		return
 	}
@@ -103,7 +110,7 @@ func (h *AMIHandler) Generate(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), amiTimeout)
 	defer cancel()
-	reply, err := h.Gemini.Generate(ctx, req)
+	reply, err := h.Model.Generate(ctx, req)
 	if err != nil {
 		code, status := amiError(err)
 		jsonError(w, code, status)
@@ -129,7 +136,7 @@ func amiError(err error) (string, int) {
 	case gemini.Blocked:
 		return "blocked", http.StatusUnprocessableEntity
 	case gemini.Unauthorized:
-		log.Print("ami: Gemini turned GEMINI_API_KEY down")
+		log.Print("ami: the model turned its API key down")
 		return "unavailable", http.StatusServiceUnavailable
 	default:
 		return "busy", http.StatusServiceUnavailable
